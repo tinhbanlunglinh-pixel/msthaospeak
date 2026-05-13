@@ -14,7 +14,6 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   const [submitted, setSubmitted] = useState<boolean>(savedScore !== undefined && savedScore !== null);
   const [score, setScore] = useState<number | null>(savedScore || null);
 
-  // Group all questions into an array for easier rendering
   const allQuestions: { type: string; title: string; questions: ExerciseQuestion[] }[] = [
     { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: exerciseData.multipleChoice || [] },
     { type: 'translation', title: 'II. Dịch sang tiếng Việt', questions: exerciseData.translation || [] },
@@ -36,18 +35,13 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       section.questions.forEach(q => {
         totalCount++;
         const userAnswer = answers[q.id]?.trim().toLowerCase();
-        
+
         let isCorrect = false;
         if (q.type === 'multiple-choice') {
           isCorrect = userAnswer === q.correctAnswer.toLowerCase();
         } else if (q.type === 'error-correction') {
-          // They need to input the correct word (we can just check if they typed the correct word)
-          // To make it simple, let's just check if they typed the correct word. 
-          // (A more advanced UI would ask for error word AND correct word, but let's just ask for the corrected word for simplicity)
           isCorrect = userAnswer === q.correctWord.toLowerCase();
         } else {
-          // translation, ordering, fillBlank
-          // Ignore punctuation and multiple spaces for comparison
           const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
           isCorrect = normalize(userAnswer || '') === normalize(q.correctAnswer);
         }
@@ -56,27 +50,58 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       });
     });
 
-    // Score out of 10
     const finalScore = Number(((correctCount / Math.max(totalCount, 1)) * 10).toFixed(1));
     setScore(finalScore);
     setSubmitted(true);
     onComplete(finalScore);
   };
 
+  const getCorrectAnswer = (q: ExerciseQuestion): string => {
+    if (q.type === 'error-correction') return (q as ErrorCorrectionQuestion).correctWord;
+    return q.correctAnswer;
+  };
+
+  const checkCorrect = (q: ExerciseQuestion, answer: string): boolean => {
+    if (!answer) return false;
+    if (q.type === 'multiple-choice') {
+      return answer.toLowerCase() === q.correctAnswer.toLowerCase();
+    }
+    if (q.type === 'error-correction') {
+      return answer.trim().toLowerCase() === q.correctWord.toLowerCase();
+    }
+    const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return normalize(answer) === normalize(q.correctAnswer);
+  };
+
   const renderQuestion = (q: ExerciseQuestion, index: number) => {
     const userAnswer = answers[q.id] || '';
-    
-    let isCorrect = false;
-    if (submitted) {
-      if (q.type === 'multiple-choice') {
-        isCorrect = userAnswer.toLowerCase() === q.correctAnswer.toLowerCase();
-      } else if (q.type === 'error-correction') {
-        isCorrect = userAnswer.trim().toLowerCase() === q.correctWord.toLowerCase();
+    const isCorrect = submitted ? checkCorrect(q, userAnswer) : false;
+
+    const getLabelClass = (key: string) => {
+      let base = 'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors';
+      if (userAnswer === key) {
+        base += ' border-brand-green bg-emerald-50/50';
       } else {
-        const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-        isCorrect = normalize(userAnswer) === normalize(q.correctAnswer);
+        base += ' border-slate-100 hover:border-emerald-200';
       }
-    }
+      if (submitted && key === (q as MultipleChoiceQuestion).correctAnswer) {
+        base += ' border-green-500 bg-green-50';
+      }
+      if (submitted && userAnswer === key && key !== (q as MultipleChoiceQuestion).correctAnswer) {
+        base += ' border-red-500 bg-red-50';
+      }
+      return base;
+    };
+
+    const getInputClass = () => {
+      let base = 'w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-brand-green/20 outline-none transition-colors';
+      if (submitted) {
+        base += isCorrect ? ' border-green-500 bg-green-50 text-green-700' : ' border-red-500 bg-red-50 text-red-700';
+      } else {
+        base += ' border-slate-200 focus:border-brand-green';
+      }
+      return base;
+    };
 
     return (
       <div key={q.id} className="p-4 sm:p-5 bg-white rounded-xl border-2 border-emerald-50 shadow-sm mb-4">
@@ -102,11 +127,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
             {q.type === 'multiple-choice' ? (
               <div className="space-y-2 mt-2">
                 {Object.entries((q as MultipleChoiceQuestion).options).map(([key, val]) => (
-                  <label key={key} className={\`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors
-                    \${userAnswer === key ? 'border-brand-green bg-emerald-50/50' : 'border-slate-100 hover:border-emerald-200'}
-                    \${submitted && key === q.correctAnswer ? 'border-green-500 bg-green-50' : ''}
-                    \${submitted && userAnswer === key && key !== q.correctAnswer ? 'border-red-500 bg-red-50' : ''}
-                  \`}>
+                  <label key={key} className={getLabelClass(key)}>
                     <input type="radio" name={q.id} value={key} disabled={submitted}
                       checked={userAnswer === key} onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                       className="w-4 h-4 text-brand-green border-slate-300 focus:ring-brand-green" />
@@ -122,22 +143,18 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
                 value={userAnswer}
                 onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                 placeholder={q.type === 'error-correction' ? "Nhập từ đúng..." : "Nhập câu trả lời..."}
-                className={\`w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-brand-green/20 outline-none transition-colors
-                  \${submitted 
-                    ? (isCorrect ? 'border-green-500 bg-green-50 text-green-700' : 'border-red-500 bg-red-50 text-red-700') 
-                    : 'border-slate-200 focus:border-brand-green'}
-                \`}
+                className={getInputClass()}
               />
             )}
 
             {submitted && (
-              <div className={\`mt-3 p-3 rounded-lg flex items-start gap-3 \${isCorrect ? 'bg-green-100' : 'bg-red-100'}\`}>
+              <div className={"mt-3 p-3 rounded-lg flex items-start gap-3 " + (isCorrect ? 'bg-green-100' : 'bg-red-100')}>
                 {isCorrect ? <CheckCircle className="text-green-600 shrink-0 mt-0.5" size={18} /> : <XCircle className="text-red-600 shrink-0 mt-0.5" size={18} />}
                 <div>
-                  <p className={\`text-sm font-bold \${isCorrect ? 'text-green-800' : 'text-red-800'}\`}>
-                    {isCorrect ? 'Tuyệt vời!' : \`Sai rồi. Đáp án đúng: \${q.type === 'error-correction' ? (q as ErrorCorrectionQuestion).correctWord : q.correctAnswer}\`}
+                  <p className={"text-sm font-bold " + (isCorrect ? 'text-green-800' : 'text-red-800')}>
+                    {isCorrect ? 'Tuyệt vời!' : 'Sai rồi. Đáp án đúng: ' + getCorrectAnswer(q)}
                   </p>
-                  <p className={\`text-xs mt-1 \${isCorrect ? 'text-green-700' : 'text-red-700'}\`}>{q.explanation}</p>
+                  <p className={"text-xs mt-1 " + (isCorrect ? 'text-green-700' : 'text-red-700')}>{q.explanation}</p>
                 </div>
               </div>
             )}
@@ -152,7 +169,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 sm:p-8 rounded-[2rem] shadow-xl text-white text-center">
         <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-2">Bài tập củng cố kiến thức</h2>
         <p className="text-emerald-50 font-medium">Hoàn thành 30 câu hỏi để nhận Chứng nhận xuất sắc nhé!</p>
-        
+
         {submitted && score !== null && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-6 bg-white/20 p-4 rounded-2xl border border-white/30 backdrop-blur-sm inline-block">
             <div className="flex items-center gap-3 justify-center mb-1">
@@ -165,7 +182,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       </div>
 
       <div className="space-y-8 bg-white/50 p-4 sm:p-6 rounded-[2rem] border-2 border-emerald-100 shadow-sm">
-        {allQuestions.map((section, sectionIdx) => {
+        {allQuestions.map((section) => {
           if (!section.questions || section.questions.length === 0) return null;
           return (
             <div key={section.type} className="space-y-4">
