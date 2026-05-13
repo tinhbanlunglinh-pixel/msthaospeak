@@ -1,0 +1,8 @@
+{
+  "name": "Remix: ENGLISH MRS. DUNG",
+  "description": "Ứng dụng luyện nói Tiếng Anh cùng cô giáo Mrs. Dung, tạo hình ảnh minh họa và xuất giấy chứng nhận cho trẻ em.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
