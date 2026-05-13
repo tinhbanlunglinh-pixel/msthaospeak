@@ -15,11 +15,11 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   const [score, setScore] = useState<number | null>(savedScore || null);
 
   const allQuestions: { type: string; title: string; questions: ExerciseQuestion[] }[] = [
-    { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: exerciseData.multipleChoice || [] },
-    { type: 'translation', title: 'II. Dịch sang tiếng Việt', questions: exerciseData.translation || [] },
-    { type: 'ordering', title: 'III. Sắp xếp lại câu', questions: exerciseData.ordering || [] },
-    { type: 'error-correction', title: 'IV. Chọn và sửa lỗi sai', questions: exerciseData.errorCorrection || [] },
-    { type: 'fill-blank', title: 'V. Điền từ vào chỗ trống', questions: exerciseData.fillBlank || [] },
+    { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: (exerciseData.multipleChoice || []).map(q => ({ ...q, type: 'multiple-choice' })) },
+    { type: 'translation', title: 'II. Dịch sang tiếng Việt', questions: (exerciseData.translation || []).map(q => ({ ...q, type: 'translation' })) },
+    { type: 'ordering', title: 'III. Sắp xếp lại câu', questions: (exerciseData.ordering || []).map(q => ({ ...q, type: 'ordering' })) },
+    { type: 'error-correction', title: 'IV. Chọn và sửa lỗi sai', questions: (exerciseData.errorCorrection || []).map(q => ({ ...q, type: 'error-correction' })) },
+    { type: 'fill-blank', title: 'V. Điền từ vào chỗ trống', questions: (exerciseData.fillBlank || []).map(q => ({ ...q, type: 'fill-blank' })) },
   ];
 
   const handleAnswerChange = (id: string, value: string) => {
@@ -109,13 +109,18 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
           <span className="font-black text-emerald-600 mt-0.5">{index + 1}.</span>
           <div className="flex-1 space-y-3">
             <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">
-              {q.type === 'error-correction' ? (q as ErrorCorrectionQuestion).sentence : q.questionText}
+              {(() => {
+                let text = q.type === 'error-correction' ? (q as ErrorCorrectionQuestion).sentence : q.questionText;
+                if (!text) return "";
+                // Remove redundant prefixes
+                return text.replace(/^(Translate to Vietnamese|Rearrange the words|Find and correct the error|Fill in the blank|Translate into Vietnamese|Rearrange these words|Correct the error)[\s:]*/i, '');
+              })()}
             </p>
 
-            {q.type === 'ordering' && (
+            {q.type === 'ordering' && (q as OrderingQuestion).words && (
               <div className="flex flex-wrap gap-2">
                 {(q as OrderingQuestion).words.map((w, i) => (
-                  <span key={i} className="px-2.5 py-1 bg-slate-100 rounded-lg text-sm font-medium border border-slate-200">{w}</span>
+                  <span key={i} className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-bold text-slate-700 border border-slate-200 shadow-sm">{w}</span>
                 ))}
               </div>
             )}
