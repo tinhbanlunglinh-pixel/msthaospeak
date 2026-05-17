@@ -153,8 +153,7 @@ export const generateContent = async (
      }
   3. A short, catchy, and exciting title/topic name for this lesson (max 5 words). EVEN IN 'useInput' MODE, you must create a concise title based on the content if the input was long text.
   4. A Vietnamese translation of the reading passage. ${mode === 'useInput' ? 'Translate the COMPLETE text, not a summary.' : ''}
-  5. A list of 3-5 key vocabulary words from the text with their IPA pronunciation and Vietnamese meaning.
-  CRITICAL: Each vocabulary item MUST be extracted fully. DO NOT abbreviate or truncate words or meanings even for long definitions.
+  5. A list of 3-5 key vocabulary words from the text with their IPA pronunciation and a very brief, concise Vietnamese meaning (strictly in Vietnamese, DO NOT include any English explanations, long definitions, or secondary translations).
   
   Cambridge Level Specifics (ONLY for 'generate' mode, IGNORE these word limits for 'useInput' mode):
   - Starters (Pre-A1): Focus on nouns, colors, numbers, and simple actions. 20-40 words.
@@ -174,7 +173,7 @@ export const generateContent = async (
   - "readingText": string (English) ${mode === 'useInput' ? '— MUST be the EXACT input text, unmodified and complete.' : ''}
   - "topicName": string (English)
   - "translation": string (Vietnamese) ${mode === 'useInput' ? '— MUST translate the complete text.' : ''}
-  - "vocabulary": array of objects { "word": string, "ipa": string, "meaning": string, "emoji": string }
+  - "vocabulary": array of objects { "word": string, "ipa": string, "meaning": string (very brief, concise Vietnamese meaning only, e.g. "quả táo", "đi bộ"), "emoji": string }
   
   The "prompt" should be in English, describing a visual scene that complements the text. Include photography quality terms.
   The "readingText" should be the educational passage (either generated or extracted/provided).
@@ -631,14 +630,14 @@ IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
 4. **Error Correction (5 questions):** The errors should be common mistakes for this specific CEFR level (e.g., verb tense, subject-verb agreement, prepositions). The sentence must contain exactly ONE error. Provide options A, B, C containing 3 words from the sentence, where one of them is the error. The correctAnswer must be 'A', 'B', or 'C'. The "sentence" field MUST format these three words with underlines and labels, e.g.: "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday." where option B is the error. Provide the correction in the "correctWord" field.
 5. **Fill in the blank (5 questions):** The missing word should be a target vocabulary word or a key functional word. Use "___" to denote the blank space.
 6. Every question MUST be strictly based on the provided text to ensure context.
-7. Provide a brief, encouraging pedagogical explanation for each answer.
+7. Provide a brief, encouraging pedagogical explanation for each answer STRICTLY IN VIETNAMESE (e.g. "Vì 'yesterday' diễn tả quá khứ đơn nên ta chọn động từ 'went' thay cho 'go'.").
 8. All IDs must be unique strings (e.g., "mc1", "tr1").
 9. DO NOT include instructional prefixes like "Translate to Vietnamese:", "Rearrange the words:", "Find and correct the error:", or "Fill in the blank:" in the questionText. Just provide the sentence or word itself.
 
 Output strictly a JSON object matching this schema:
 {
   "multipleChoice": [
-    { "id": "mc1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "A", "explanation": "..." },
+    { "id": "mc1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "A", "explanation": "..." (brief, helpful explanation in Vietnamese) },
     ... 10 items
   ],
   "translation": [

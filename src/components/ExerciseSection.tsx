@@ -214,37 +214,49 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
               )}
               
               {!submitted && !shownResults[q.id] && (
-                <button 
-                  type="button"
-                  onClick={() => toggleHint(q.id)}
-                  className={`p-1.5 rounded-lg transition-all shrink-0 hover:scale-110 flex items-center justify-center
-                    ${activeHints[q.id] ? 'bg-amber-100 text-amber-500 shadow-sm' : 'bg-slate-50 text-slate-400 hover:text-amber-500 hover:bg-amber-50'}`}
-                  title="Xem gợi ý từ cô Thảo"
-                >
-                  <Lightbulb size={16} />
-                </button>
+                <div className="relative shrink-0">
+                  <button 
+                    type="button"
+                    onClick={() => toggleHint(q.id)}
+                    className={`w-9 h-9 rounded-full border transition-all flex items-center justify-center shadow-sm hover:scale-110 active:scale-95
+                      ${activeHints[q.id] 
+                        ? 'border-amber-400 bg-amber-50 text-amber-500 shadow-amber-50' 
+                        : 'border-slate-200 bg-slate-50 text-slate-400 hover:text-amber-500 hover:bg-amber-50 hover:border-amber-200'
+                      }`}
+                    title={q.explanation}
+                  >
+                    <Lightbulb size={16} />
+                  </button>
+                  
+                  {/* Floating premium popover tooltip */}
+                  <AnimatePresence>
+                    {activeHints[q.id] && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => toggleHint(q.id)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                          className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-slate-900/95 text-white rounded-xl shadow-xl z-50 text-xs leading-relaxed border border-slate-800"
+                        >
+                          <div className="absolute right-3 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900/95" />
+                          <div className="flex items-start gap-1.5 font-medium">
+                            <span className="text-amber-400 text-sm">💡</span>
+                            <div>
+                              <span className="text-amber-400 font-extrabold uppercase text-[9px] tracking-wider block mb-0.5">Cô Thảo Gợi Ý</span>
+                              {q.explanation}
+                            </div>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
             </div>
-
-            {/* Collapsible suggestion hint box */}
-            <AnimatePresence>
-              {activeHints[q.id] && !submitted && !shownResults[q.id] && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                  animate={{ height: 'auto', opacity: 1, marginTop: 8 }}
-                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2.5 text-amber-800 text-xs sm:text-sm font-semibold shadow-inner">
-                    <Lightbulb className="text-amber-500 shrink-0 mt-0.5" size={16} />
-                    <div className="flex-1">
-                      <span className="text-amber-900 font-extrabold uppercase text-[10px] tracking-wider block mb-0.5">💡 Cô Thảo gợi ý:</span>
-                      {q.explanation}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Ordering Question Interface */}
             {q.type === 'ordering' && (
