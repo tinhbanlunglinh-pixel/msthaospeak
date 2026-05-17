@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExerciseData, ExerciseQuestion, MultipleChoiceQuestion, TranslationQuestion, OrderingQuestion, ErrorCorrectionQuestion, FillBlankQuestion } from '../types';
-import { CheckCircle, XCircle, Award } from 'lucide-react';
+import { CheckCircle, XCircle, Award, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ExerciseSectionProps {
@@ -16,6 +16,16 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   
   // Track selected word indices for Ordering questions
   const [orderingIndices, setOrderingIndices] = useState<Record<string, number[]>>({});
+
+  // Track active hints per question ID
+  const [activeHints, setActiveHints] = useState<Record<string, boolean>>({});
+
+  // Track shown results per question ID (for immediate feedback)
+  const [shownResults, setShownResults] = useState<Record<string, boolean>>({});
+
+  const toggleHint = (id: string) => {
+    setActiveHints(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const allQuestions: { type: string; title: string; questions: ExerciseQuestion[] }[] = [
     { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: (exerciseData.multipleChoice || []).map(q => ({ ...q, type: 'multiple-choice' })) },
@@ -51,6 +61,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   const handleAnswerChange = (id: string, value: string) => {
     if (submitted) return;
     setAnswers(prev => ({ ...prev, [id]: value }));
+    setShownResults(prev => ({ ...prev, [id]: true }));
   };
 
   // Add word to Ordering answer
@@ -65,7 +76,12 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
     const question = exerciseData.ordering.find(q => q.id === qId);
     if (question) {
       const answerString = newIndices.map(idx => question.words[idx]).join(' ');
-      handleAnswerChange(qId, answerString);
+      setAnswers(prev => ({ ...prev, [qId]: answerString }));
+      if (newIndices.length === question.words.length) {
+        setShownResults(prev => ({ ...prev, [qId]: true }));
+      } else {
+        setShownResults(prev => ({ ...prev, [qId]: false }));
+      }
     }
   };
 
@@ -79,7 +95,8 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
     const question = exerciseData.ordering.find(q => q.id === qId);
     if (question) {
       const answerString = newIndices.map(idx => question.words[idx]).join(' ');
-      handleAnswerChange(qId, answerString);
+      setAnswers(prev => ({ ...prev, [qId]: answerString }));
+      setShownResults(prev => ({ ...prev, [qId]: false }));
     }
   };
 
@@ -133,7 +150,8 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
 
   const renderQuestion = (q: ExerciseQuestion, index: number) => {
     const userAnswer = answers[q.id] || '';
-    const isCorrect = submitted ? checkCorrect(q, userAnswer) : false;
+    const isCorrect = checkCorrect(q, userAnswer);
+    const isShown = submitted || shownResults[q.id];
 
     const getLabelClass = (key: string) => {
       let base = 'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 select-none';
@@ -145,9 +163,9 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
         base += ' border-slate-100 hover:border-emerald-200 hover:bg-slate-50/50';
       }
       
-      if (submitted && key === qMC.correctAnswer) {
+      if (isShown && key === qMC.correctAnswer) {
         base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-green-500 bg-green-50/70 text-green-950 font-semibold';
-      } else if (submitted && userAnswer === key && key !== qMC.correctAnswer) {
+      } else if (isShown && userAnswer === key && key !== qMC.correctAnswer) {
         base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-red-400 bg-red-50/70 text-red-950';
       } else if (submitted) {
         base += ' opacity-60 cursor-not-allowed';
@@ -158,7 +176,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
 
     const getInputClass = () => {
       let base = 'w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-brand-green/20 outline-none transition-colors';
-      if (submitted) {
+      if (isShown) {
         base += isCorrect ? ' border-green-500 bg-green-50 text-green-700 font-medium' : ' border-red-500 bg-red-50 text-red-700';
       } else {
         base += ' border-slate-200 focus:border-brand-green';
@@ -183,16 +201,50 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
         <div className="flex gap-3">
           <span className="font-black text-emerald-600 mt-0.5">{index + 1}.</span>
           <div className="flex-1 space-y-3">
-            {q.type === 'error-correction' ? (
-              <div 
-                className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed error-correction-sentence"
-                dangerouslySetInnerHTML={{ __html: (q as ErrorCorrectionQuestion).sentence.replace(/^(Find and correct the error|Correct the error)[\s:]*/i, '') }}
-              />
-            ) : (
-              <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">
-                {q.questionText.replace(/^(Translate to Vietnamese|Rearrange the words|Fill in the blank|Translate into Vietnamese|Rearrange these words)[\s:]*/i, '')}
-              </p>
-            )}
+            <div className="flex justify-between items-start gap-3">
+              {q.type === 'error-correction' ? (
+                <div 
+                  className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed error-correction-sentence flex-1"
+                  dangerouslySetInnerHTML={{ __html: (q as ErrorCorrectionQuestion).sentence.replace(/^(Find and correct the error|Correct the error)[\s:]*/i, '') }}
+                />
+              ) : (
+                <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed flex-1">
+                  {q.questionText.replace(/^(Translate to Vietnamese|Rearrange the words|Fill in the blank|Translate into Vietnamese|Rearrange these words)[\s:]*/i, '')}
+                </p>
+              )}
+              
+              {!submitted && !shownResults[q.id] && (
+                <button 
+                  type="button"
+                  onClick={() => toggleHint(q.id)}
+                  className={`p-1.5 rounded-lg transition-all shrink-0 hover:scale-110 flex items-center justify-center
+                    ${activeHints[q.id] ? 'bg-amber-100 text-amber-500 shadow-sm' : 'bg-slate-50 text-slate-400 hover:text-amber-500 hover:bg-amber-50'}`}
+                  title="Xem gợi ý từ cô Thảo"
+                >
+                  <Lightbulb size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Collapsible suggestion hint box */}
+            <AnimatePresence>
+              {activeHints[q.id] && !submitted && !shownResults[q.id] && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                  animate={{ height: 'auto', opacity: 1, marginTop: 8 }}
+                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2.5 text-amber-800 text-xs sm:text-sm font-semibold shadow-inner">
+                    <Lightbulb className="text-amber-500 shrink-0 mt-0.5" size={16} />
+                    <div className="flex-1">
+                      <span className="text-amber-900 font-extrabold uppercase text-[10px] tracking-wider block mb-0.5">💡 Cô Thảo gợi ý:</span>
+                      {q.explanation}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Ordering Question Interface */}
             {q.type === 'ordering' && (
@@ -274,13 +326,29 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
                 type="text"
                 disabled={submitted}
                 value={userAnswer}
-                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAnswers(prev => ({ ...prev, [q.id]: val }));
+                  if (!val.trim()) {
+                    setShownResults(prev => ({ ...prev, [q.id]: false }));
+                  }
+                }}
+                onBlur={(e) => {
+                  if (e.target.value.trim()) {
+                    setShownResults(prev => ({ ...prev, [q.id]: true }));
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
                 placeholder="Nhập câu trả lời..."
                 className={getInputClass()}
               />
             ) : null}
 
-            {submitted && (
+            {isShown && userAnswer && (
               <div className={"mt-3 p-3 rounded-lg flex items-start gap-3 " + (isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200')}>
                 {isCorrect ? <CheckCircle className="text-green-600 shrink-0 mt-0.5" size={18} /> : <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} />}
                 <div>
