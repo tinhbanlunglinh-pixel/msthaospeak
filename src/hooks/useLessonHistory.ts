@@ -66,6 +66,10 @@ export function useLessonHistory() {
     setLessons(prev => prev.map(l => l.id === id ? { ...l, exerciseScore } : l));
   }, []);
 
+  const updateExerciseData = useCallback((id: string, exerciseData: ExerciseData) => {
+    setLessons(prev => prev.map(l => l.id === id ? { ...l, exerciseData } : l));
+  }, []);
+
   const clearAll = useCallback(() => {
     setLessons([]);
   }, []);
@@ -76,6 +80,7 @@ export function useLessonHistory() {
     removeLesson,
     updateScore,
     updateExerciseScore,
+    updateExerciseData,
     clearAll,
   };
 }

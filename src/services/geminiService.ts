@@ -1,5 +1,12 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
+const parseSafeJson = (text: string) => {
+  let cleaned = (text || "{}").trim();
+  // Strip markdown backticks if present
+  cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+  return JSON.parse(cleaned);
+};
+
 const getApiKey = () => {
   // Try to get from localStorage first (for client-managed keys)
   if (typeof window !== "undefined") {
@@ -211,7 +218,7 @@ export const generateContent = async (
   }
 
   try {
-    const result = JSON.parse(response.text);
+    const result = parseSafeJson(response.text);
     
     // 🛡️ BẢO VỆ TUYỆT ĐỐI NỘI DUNG VĂN BẢN (useInput)
     // AI đôi khi vẫn tự cắt ngắn văn bản, nên nếu là văn bản (không phải ảnh), 
@@ -591,7 +598,7 @@ Output định dạng JSON:
   });
 
   try {
-    const result = JSON.parse(response.text || "{}");
+    const result = parseSafeJson(response.text || "{}");
     return {
       isComplete: result.isComplete ?? true,
       missingContent: result.missingContent || "",
@@ -676,7 +683,7 @@ Output strictly a JSON object matching this schema:
   });
 
   try {
-    const result = JSON.parse(response.text || "{}");
+    const result = parseSafeJson(response.text || "{}");
     return result as ExerciseData;
   } catch (err: any) {
     console.error("Exercise Generation Error:", err);

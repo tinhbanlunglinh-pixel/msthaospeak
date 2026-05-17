@@ -107,25 +107,25 @@ export default function App() {
       audioPlayer.setAudioUrl(null);
       recorder.setEvaluation(null);
 
-      // 2. Generate audio and exercises in parallel
-      audioPlayer.setIsAudioLoading(true);
-      const [audioUrl, exData] = await Promise.all([
-        text ? generateAudio(text, level).catch(err => {
-          console.error("Background audio generation failed", err);
-          const msg = err?.message || "";
-          if (msg === "QUOTA_EXCEEDED" || msg === "INVALID_KEY") throw err;
-          // No error shown — audio will silently fall back to browser TTS on demand
-          return null;
-        }) : Promise.resolve(null),
-        text ? generateExercise(text, level).catch(err => {
-          console.error("Exercise generation failed", err);
-          return null;
-        }) : Promise.resolve(null)
-      ]);
+      // 2. Generate exercises first (critical for certificate)
+      const exData = text ? await generateExercise(text, level).catch(err => {
+        console.error("Exercise generation failed", err);
+        return null;
+      }) : null;
       
-      if (audioUrl) audioPlayer.setAudioUrl(audioUrl);
       setExerciseData(exData);
       setExerciseScore(null);
+
+      // 3. Then generate audio (or fallback to TTS)
+      audioPlayer.setIsAudioLoading(true);
+      const audioUrl = text ? await generateAudio(text, level).catch(err => {
+        console.error("Background audio generation failed", err);
+        const msg = err?.message || "";
+        if (msg === "QUOTA_EXCEEDED" || msg === "INVALID_KEY") throw err;
+        return null;
+      }) : null;
+      
+      if (audioUrl) audioPlayer.setAudioUrl(audioUrl);
       audioPlayer.setIsAudioLoading(false);
 
       // 3. Save to lesson history
@@ -471,7 +471,41 @@ export default function App() {
                       />
 
                       {/* Exercise Section */}
-                      {exerciseData && (
+                      {!exerciseData ? (
+                        <div className="w-full max-w-[800px] p-6 bg-amber-50/75 rounded-2xl border-2 border-dashed border-amber-200 flex flex-col items-center justify-center text-center space-y-3">
+                          <span className="text-2xl">📝</span>
+                          <div>
+                            <h4 className="font-bold text-amber-900 text-sm sm:text-base">Bài học chưa có phần bài tập</h4>
+                            <p className="text-xs text-amber-700/80 mt-1 max-w-md">Do kết nối mạng hoặc quá tải hệ thống từ Google. Bạn hãy nhấn nút dưới đây để tạo bài tập ngay nhé!</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!readingText) return;
+                              setIsGenerating(true);
+                              setError(null);
+                              try {
+                                const exData = await generateExercise(readingText, level);
+                                setExerciseData(exData);
+                                // Save to lesson history
+                                if (currentLessonId) {
+                                  lessonHistory.updateExerciseData(currentLessonId, exData);
+                                }
+                              } catch (err: any) {
+                                console.error(err);
+                                setError("Không thể tạo bài tập lúc này. Vui lòng kiểm tra lại khóa API và thử lại sau.");
+                              } finally {
+                                setIsGenerating(false);
+                              }
+                            }}
+                            disabled={isGenerating}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all"
+                          >
+                            <RefreshCw className={isGenerating ? "animate-spin" : ""} size={14} />
+                            Tạo phần bài tập
+                          </button>
+                        </div>
+                      ) : (
                         <ExerciseSection 
                           exerciseData={exerciseData} 
                           savedScore={exerciseScore} 
