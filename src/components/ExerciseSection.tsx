@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExerciseData, ExerciseQuestion, MultipleChoiceQuestion, TranslationQuestion, OrderingQuestion, ErrorCorrectionQuestion, FillBlankQuestion } from '../types';
-import { CheckCircle, XCircle, ChevronDown, ChevronUp, Award } from 'lucide-react';
+import { CheckCircle, XCircle, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ExerciseSectionProps {
@@ -13,18 +13,74 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<boolean>(savedScore !== undefined && savedScore !== null);
   const [score, setScore] = useState<number | null>(savedScore || null);
+  
+  // Track selected word indices for Ordering questions
+  const [orderingIndices, setOrderingIndices] = useState<Record<string, number[]>>({});
 
   const allQuestions: { type: string; title: string; questions: ExerciseQuestion[] }[] = [
     { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: (exerciseData.multipleChoice || []).map(q => ({ ...q, type: 'multiple-choice' })) },
-    { type: 'translation', title: 'II. Dịch sang tiếng Việt', questions: (exerciseData.translation || []).map(q => ({ ...q, type: 'translation' })) },
-    { type: 'ordering', title: 'III. Sắp xếp lại câu', questions: (exerciseData.ordering || []).map(q => ({ ...q, type: 'ordering' })) },
-    { type: 'error-correction', title: 'IV. Chọn và sửa lỗi sai', questions: (exerciseData.errorCorrection || []).map(q => ({ ...q, type: 'error-correction' })) },
+    { type: 'translation', title: 'II. Chọn bản dịch đúng nhất (A, B, C)', questions: (exerciseData.translation || []).map(q => ({ ...q, type: 'translation' })) },
+    { type: 'ordering', title: 'III. Bấm vào chữ để sắp xếp lại câu', questions: (exerciseData.ordering || []).map(q => ({ ...q, type: 'ordering' })) },
+    { type: 'error-correction', title: 'IV. Tìm từ có lỗi sai (A, B, C)', questions: (exerciseData.errorCorrection || []).map(q => ({ ...q, type: 'error-correction' })) },
     { type: 'fill-blank', title: 'V. Điền từ vào chỗ trống', questions: (exerciseData.fillBlank || []).map(q => ({ ...q, type: 'fill-blank' })) },
   ];
+
+  // Initialize ordering indices for completed/submitted exercises
+  useEffect(() => {
+    if (submitted && exerciseData?.ordering) {
+      const initialIndices: Record<string, number[]> = {};
+      exerciseData.ordering.forEach(q => {
+        const correctWords = q.correctAnswer.split(' ');
+        const indices: number[] = [];
+        const used = new Set<number>();
+        
+        correctWords.forEach(word => {
+          const idx = q.words.findIndex((w, i) => w === word && !used.has(i));
+          if (idx !== -1) {
+            indices.push(idx);
+            used.add(idx);
+          }
+        });
+        
+        initialIndices[q.id] = indices;
+      });
+      setOrderingIndices(initialIndices);
+    }
+  }, [submitted, exerciseData]);
 
   const handleAnswerChange = (id: string, value: string) => {
     if (submitted) return;
     setAnswers(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Add word to Ordering answer
+  const handleAddWordToAnswer = (qId: string, wordIdx: number) => {
+    if (submitted) return;
+    const currentIndices = orderingIndices[qId] || [];
+    if (currentIndices.includes(wordIdx)) return;
+
+    const newIndices = [...currentIndices, wordIdx];
+    setOrderingIndices(prev => ({ ...prev, [qId]: newIndices }));
+
+    const question = exerciseData.ordering.find(q => q.id === qId);
+    if (question) {
+      const answerString = newIndices.map(idx => question.words[idx]).join(' ');
+      handleAnswerChange(qId, answerString);
+    }
+  };
+
+  // Remove word from Ordering answer
+  const handleRemoveWordFromAnswer = (qId: string, itemIndexInAnswer: number) => {
+    if (submitted) return;
+    const currentIndices = orderingIndices[qId] || [];
+    const newIndices = currentIndices.filter((_, idx) => idx !== itemIndexInAnswer);
+    setOrderingIndices(prev => ({ ...prev, [qId]: newIndices }));
+
+    const question = exerciseData.ordering.find(q => q.id === qId);
+    if (question) {
+      const answerString = newIndices.map(idx => question.words[idx]).join(' ');
+      handleAnswerChange(qId, answerString);
+    }
   };
 
   const handleSubmit = () => {
@@ -37,10 +93,8 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
         const userAnswer = answers[q.id]?.trim().toLowerCase();
 
         let isCorrect = false;
-        if (q.type === 'multiple-choice') {
+        if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction') {
           isCorrect = userAnswer === q.correctAnswer.toLowerCase();
-        } else if (q.type === 'error-correction') {
-          isCorrect = userAnswer === q.correctWord.toLowerCase();
         } else {
           const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
           isCorrect = normalize(userAnswer || '') === normalize(q.correctAnswer);
@@ -57,17 +111,21 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   };
 
   const getCorrectAnswer = (q: ExerciseQuestion): string => {
-    if (q.type === 'error-correction') return (q as ErrorCorrectionQuestion).correctWord;
+    if (q.type === 'multiple-choice' || q.type === 'translation') {
+      const mc = q as MultipleChoiceQuestion | TranslationQuestion;
+      return `${mc.correctAnswer}. ${mc.options[mc.correctAnswer]}`;
+    }
+    if (q.type === 'error-correction') {
+      const ec = q as ErrorCorrectionQuestion;
+      return `${ec.correctAnswer} (${ec.options[ec.correctAnswer]} → ${ec.correctWord})`;
+    }
     return q.correctAnswer;
   };
 
   const checkCorrect = (q: ExerciseQuestion, answer: string): boolean => {
     if (!answer) return false;
-    if (q.type === 'multiple-choice') {
+    if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction') {
       return answer.toLowerCase() === q.correctAnswer.toLowerCase();
-    }
-    if (q.type === 'error-correction') {
-      return answer.trim().toLowerCase() === q.correctWord.toLowerCase();
     }
     const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
     return normalize(answer) === normalize(q.correctAnswer);
@@ -78,25 +136,30 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
     const isCorrect = submitted ? checkCorrect(q, userAnswer) : false;
 
     const getLabelClass = (key: string) => {
-      let base = 'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors';
+      let base = 'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 select-none';
+      const qMC = q as MultipleChoiceQuestion | TranslationQuestion | ErrorCorrectionQuestion;
+
       if (userAnswer === key) {
-        base += ' border-brand-green bg-emerald-50/50';
+        base += ' border-brand-green bg-emerald-50/50 shadow-sm';
       } else {
-        base += ' border-slate-100 hover:border-emerald-200';
+        base += ' border-slate-100 hover:border-emerald-200 hover:bg-slate-50/50';
       }
-      if (submitted && key === (q as MultipleChoiceQuestion).correctAnswer) {
-        base += ' border-green-500 bg-green-50';
+      
+      if (submitted && key === qMC.correctAnswer) {
+        base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-green-500 bg-green-50/70 text-green-950 font-semibold';
+      } else if (submitted && userAnswer === key && key !== qMC.correctAnswer) {
+        base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-red-400 bg-red-50/70 text-red-950';
+      } else if (submitted) {
+        base += ' opacity-60 cursor-not-allowed';
       }
-      if (submitted && userAnswer === key && key !== (q as MultipleChoiceQuestion).correctAnswer) {
-        base += ' border-red-500 bg-red-50';
-      }
+      
       return base;
     };
 
     const getInputClass = () => {
       let base = 'w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-brand-green/20 outline-none transition-colors';
       if (submitted) {
-        base += isCorrect ? ' border-green-500 bg-green-50 text-green-700' : ' border-red-500 bg-red-50 text-red-700';
+        base += isCorrect ? ' border-green-500 bg-green-50 text-green-700 font-medium' : ' border-red-500 bg-red-50 text-red-700';
       } else {
         base += ' border-slate-200 focus:border-brand-green';
       }
@@ -104,24 +167,82 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
     };
 
     return (
-      <div key={q.id} className="p-4 sm:p-5 bg-white rounded-xl border-2 border-emerald-50 shadow-sm mb-4">
+      <div key={q.id} className="p-4 sm:p-5 bg-white rounded-xl border border-slate-100 shadow-sm mb-4">
+        {/* Style injection for beautiful interactive error underlines */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .error-correction-sentence u {
+            text-decoration: none;
+            border-bottom: 2px dashed #10b981;
+            font-weight: 800;
+            color: #047857;
+            padding: 0 4px;
+            display: inline-block;
+          }
+        `}} />
+
         <div className="flex gap-3">
           <span className="font-black text-emerald-600 mt-0.5">{index + 1}.</span>
           <div className="flex-1 space-y-3">
-            <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">
-              {(() => {
-                let text = q.type === 'error-correction' ? (q as ErrorCorrectionQuestion).sentence : q.questionText;
-                if (!text) return "";
-                // Remove redundant prefixes
-                return text.replace(/^(Translate to Vietnamese|Rearrange the words|Find and correct the error|Fill in the blank|Translate into Vietnamese|Rearrange these words|Correct the error)[\s:]*/i, '');
-              })()}
-            </p>
+            {q.type === 'error-correction' ? (
+              <div 
+                className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed error-correction-sentence"
+                dangerouslySetInnerHTML={{ __html: (q as ErrorCorrectionQuestion).sentence.replace(/^(Find and correct the error|Correct the error)[\s:]*/i, '') }}
+              />
+            ) : (
+              <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">
+                {q.questionText.replace(/^(Translate to Vietnamese|Rearrange the words|Fill in the blank|Translate into Vietnamese|Rearrange these words)[\s:]*/i, '')}
+              </p>
+            )}
 
-            {q.type === 'ordering' && (q as OrderingQuestion).words && (
-              <div className="flex flex-wrap gap-2">
-                {(q as OrderingQuestion).words.map((w, i) => (
-                  <span key={i} className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-bold text-slate-700 border border-slate-200 shadow-sm">{w}</span>
-                ))}
+            {/* Ordering Question Interface */}
+            {q.type === 'ordering' && (
+              <div className="space-y-3">
+                {/* Result Answer Box */}
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50/50 min-h-[56px] flex flex-wrap gap-2 items-center">
+                  {(orderingIndices[q.id] || []).length === 0 ? (
+                    <span className="text-slate-400 text-xs sm:text-sm italic">Bấm vào các từ bên dưới để sắp xếp...</span>
+                  ) : (
+                    (orderingIndices[q.id] || []).map((idx, itemIndex) => (
+                      <motion.button
+                        key={`${idx}-${itemIndex}`}
+                        layoutId={`word-${q.id}-${idx}`}
+                        disabled={submitted}
+                        onClick={() => handleRemoveWordFromAnswer(q.id, itemIndex)}
+                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500 text-white rounded-lg text-xs sm:text-sm font-bold shadow-sm flex items-center gap-1 transition-all"
+                        whileTap={submitted ? {} : { scale: 0.95 }}
+                      >
+                        {(q as OrderingQuestion).words[idx]}
+                        {!submitted && <span className="text-[10px] opacity-75 font-black ml-1">✕</span>}
+                      </motion.button>
+                    ))
+                  )}
+                </div>
+
+                {/* Available Word Pool */}
+                {!submitted && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Từ gợi ý:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {(q as OrderingQuestion).words.map((w, idx) => {
+                        const isSelected = (orderingIndices[q.id] || []).includes(idx);
+                        return (
+                          <div key={idx} className="min-w-[40px] min-h-[30px] flex items-center justify-center">
+                            {!isSelected && (
+                              <motion.button
+                                layoutId={`word-${q.id}-${idx}`}
+                                onClick={() => handleAddWordToAnswer(q.id, idx)}
+                                className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs sm:text-sm font-bold shadow-sm transition-all"
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                {w}
+                              </motion.button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -129,37 +250,44 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
               <p className="font-medium text-slate-600 italic">{(q as FillBlankQuestion).sentenceWithBlank}</p>
             )}
 
-            {q.type === 'multiple-choice' ? (
+            {/* Multiple Choice Options (for multiple-choice, translation, error-correction) */}
+            {(q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction') ? (
               <div className="space-y-2 mt-2">
-                {Object.entries((q as MultipleChoiceQuestion).options).map(([key, val]) => (
+                {Object.entries((q as MultipleChoiceQuestion | TranslationQuestion | ErrorCorrectionQuestion).options).map(([key, val]) => (
                   <label key={key} className={getLabelClass(key)}>
-                    <input type="radio" name={q.id} value={key} disabled={submitted}
-                      checked={userAnswer === key} onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      className="w-4 h-4 text-brand-green border-slate-300 focus:ring-brand-green" />
-                    <span className="font-black text-slate-500">{key}.</span>
+                    <input 
+                      type="radio" 
+                      name={q.id} 
+                      value={key} 
+                      disabled={submitted}
+                      checked={userAnswer === key} 
+                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                      className="w-4 h-4 text-brand-green border-slate-300 focus:ring-brand-green shrink-0" 
+                    />
+                    <span className="font-black text-slate-400 shrink-0">{key}.</span>
                     <span className="font-medium text-slate-700">{val}</span>
                   </label>
                 ))}
               </div>
-            ) : (
+            ) : q.type === 'fill-blank' ? (
               <input
                 type="text"
                 disabled={submitted}
                 value={userAnswer}
                 onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                placeholder={q.type === 'error-correction' ? "Nhập từ đúng..." : "Nhập câu trả lời..."}
+                placeholder="Nhập câu trả lời..."
                 className={getInputClass()}
               />
-            )}
+            ) : null}
 
             {submitted && (
-              <div className={"mt-3 p-3 rounded-lg flex items-start gap-3 " + (isCorrect ? 'bg-green-100' : 'bg-red-100')}>
-                {isCorrect ? <CheckCircle className="text-green-600 shrink-0 mt-0.5" size={18} /> : <XCircle className="text-red-600 shrink-0 mt-0.5" size={18} />}
+              <div className={"mt-3 p-3 rounded-lg flex items-start gap-3 " + (isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200')}>
+                {isCorrect ? <CheckCircle className="text-green-600 shrink-0 mt-0.5" size={18} /> : <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} />}
                 <div>
                   <p className={"text-sm font-bold " + (isCorrect ? 'text-green-800' : 'text-red-800')}>
-                    {isCorrect ? 'Tuyệt vời!' : 'Sai rồi. Đáp án đúng: ' + getCorrectAnswer(q)}
+                    {isCorrect ? 'Tuyệt vời!' : 'Chưa đúng rồi. Đáp án đúng: ' + getCorrectAnswer(q)}
                   </p>
-                  <p className={"text-xs mt-1 " + (isCorrect ? 'text-green-700' : 'text-red-700')}>{q.explanation}</p>
+                  <p className={"text-xs mt-1 leading-relaxed " + (isCorrect ? 'text-green-700/80' : 'text-red-700/80')}>{q.explanation}</p>
                 </div>
               </div>
             )}

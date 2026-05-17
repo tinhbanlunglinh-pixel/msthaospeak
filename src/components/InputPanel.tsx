@@ -3,7 +3,7 @@ import {
   Type, Image as ImageIcon, FileText, Upload, RefreshCw, X, 
   GraduationCap, Sparkles, AlertCircle 
 } from 'lucide-react';
-import { EnglishLevel, ContentMode, AspectRatio } from '../types';
+import { EnglishLevel, ContentMode } from '../types';
 
 interface InputPanelProps {
   topic: string;
@@ -14,8 +14,6 @@ interface InputPanelProps {
   setContentMode: (mode: ContentMode) => void;
   imagePreview: string | null;
   setImagePreview: (preview: string | null) => void;
-  aspectRatio: AspectRatio;
-  setAspectRatio: (ratio: AspectRatio) => void;
   isGenerating: boolean;
   isProcessingFile: boolean;
   isDragging: boolean;
@@ -34,18 +32,11 @@ interface InputPanelProps {
 }
 
 const LEVELS: EnglishLevel[] = ["Starters", "Movers", "Flyers", "A1", "A2", "B1", "B2"];
-const ASPECT_RATIOS: { label: string; value: AspectRatio }[] = [
-  { label: "4:3", value: "4:3" },
-  { label: "1:1", value: "1:1" },
-  { label: "3:4", value: "3:4" },
-  { label: "16:9", value: "16:9" },
-  { label: "9:16", value: "9:16" },
-];
 
 export const InputPanel: React.FC<InputPanelProps> = (props) => {
   const {
     topic, setTopic, level, setLevel, contentMode,
-    imagePreview, setImagePreview, aspectRatio, setAspectRatio,
+    imagePreview, setImagePreview,
     isGenerating, isProcessingFile, isDragging, error,
     onGenerate, onRetry, onOpenApiKeyModal,
     imageInputRef, docFileInputRef, handleImageUpload, 
@@ -119,20 +110,7 @@ export const InputPanel: React.FC<InputPanelProps> = (props) => {
             </div>
           </div>
 
-          {/* Aspect Ratio Selector */}
-          <div>
-            <label className="flex items-center gap-2 text-xs font-black text-brand-green mb-2 uppercase tracking-wider">
-              <ImageIcon size={14} className="text-emerald-500" /> Tỷ lệ ảnh
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {ASPECT_RATIOS.map((ar) => (
-                <button key={ar.value} onClick={() => setAspectRatio(ar.value)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all
-                    ${aspectRatio === ar.value ? 'bg-brand-green border-brand-green text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'}`}
-                >{ar.label}</button>
-              ))}
-            </div>
-          </div>
+
 
           {/* Generate Button */}
           <button onClick={onGenerate} disabled={isGenerating}

@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Image as ImageIcon, FileText, Volume2, Pause, RefreshCw, Target, Play } from 'lucide-react';
+import { FileText, Volume2, Pause, RefreshCw, Target, Play } from 'lucide-react';
 import { VocabularyItem, EnglishLevel } from '../types';
 
 interface PosterPreviewProps {
-  generatedImage: string | null;
   readingText: string | null;
   translationText: string | null;
   vocabulary: VocabularyItem[];
@@ -20,7 +19,6 @@ interface PosterPreviewProps {
   handlePlayAudio: () => Promise<void>;
   isDownloading: boolean;
   onDownloadPoster: () => void;
-  onDownloadImage: () => void;
   onToggleTranslation: () => void;
   posterRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -28,11 +26,11 @@ interface PosterPreviewProps {
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5];
 
 export const PosterPreview: React.FC<PosterPreviewProps> = ({
-  generatedImage, readingText, translationText, vocabulary,
+  readingText, translationText, vocabulary,
   generatedTopicName, topic, level, showTranslation,
   audioUrl, audioRef, isPlaying, isAudioLoading, isBrowserTTS,
   setIsPlaying, handlePlayAudio,
-  isDownloading, onDownloadPoster, onDownloadImage, onToggleTranslation,
+  isDownloading, onDownloadPoster, onToggleTranslation,
   posterRef
 }) => {
   return (
@@ -53,16 +51,6 @@ export const PosterPreview: React.FC<PosterPreviewProps> = ({
         maxWidth: '600px'
       }}
     >
-      {/* Image */}
-      <div className="w-full overflow-hidden" style={{ borderRadius: '12px', border: '4px solid #f8fafc', boxShadow: '0 2px 4px 0 rgba(0, 0, 0, 0.06)' }}>
-        {generatedImage ? (
-          <img src={generatedImage} alt="Generated Illustration" className="w-full h-auto object-contain" crossOrigin="anonymous" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="w-full aspect-square flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
-            <ImageIcon style={{ color: '#e5e7eb' }} size={48} />
-          </div>
-        )}
-      </div>
 
       {/* Text Section */}
       <div className="flex-1 p-3" style={{ backgroundColor: '#ffffff', border: '3px solid #00a84d', borderRadius: '16px', boxShadow: '0 4px 0 #0d4023' }}>

@@ -19,7 +19,8 @@ export interface MultipleChoiceQuestion extends BaseQuestion {
 
 export interface TranslationQuestion extends BaseQuestion {
   type: 'translation';
-  correctAnswer: string;
+  options: { A: string; B: string; C: string };
+  correctAnswer: 'A' | 'B' | 'C';
 }
 
 export interface OrderingQuestion extends BaseQuestion {
@@ -30,9 +31,10 @@ export interface OrderingQuestion extends BaseQuestion {
 
 export interface ErrorCorrectionQuestion extends BaseQuestion {
   type: 'error-correction';
-  sentence: string; // The full sentence with the error
-  errorWord: string; // The specific word that is wrong
-  correctWord: string; // The word that should replace the error
+  sentence: string; // The sentence with underlined/highlighted parts, e.g. "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C)."
+  options: { A: string; B: string; C: string };
+  correctAnswer: 'A' | 'B' | 'C';
+  correctWord: string; // The correct word that should replace the error
 }
 
 export interface FillBlankQuestion extends BaseQuestion {

@@ -619,21 +619,21 @@ The level is: ${level}.
 The questions must be structured exactly as requested in the JSON format.
 There must be EXACTLY:
 - 10 multiple-choice questions (A, B, C)
-- 5 translation questions (English to Vietnamese)
+- 5 translation questions (English to Vietnamese, A, B, C multiple-choice options)
 - 5 ordering questions (Rearrange words to make a sentence)
-- 5 error-correction questions (Identify and correct ONE wrong word in a sentence)
+- 5 error-correction questions (Identify ONE wrong word from 3 options A, B, C within a sentence)
 - 5 fill-blank questions (Fill in the missing word)
 
 IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
 1. **Multiple Choice (10 questions):** Focus on Reading Comprehension (main idea, details, inference, vocabulary in context). Distractors (incorrect options) must be plausible but clearly wrong.
-2. **Translation (5 questions):** Select sentences that contain key vocabulary or important grammatical structures from the text.
+2. **Translation (5 questions):** Depending on the level (${level}), select either words (for lower levels like Starters, Movers, Flyers) or full sentences (for higher levels like A1, A2, B1, B2) from the text. This MUST be multiple choice with options A, B, C in Vietnamese. The correctAnswer must be 'A', 'B', or 'C'.
 3. **Ordering (5 questions):** Scramble sentences that test standard English syntax (e.g., Subject-Verb-Object, adjective placement, question formation).
-4. **Error Correction (5 questions):** The errors should be common mistakes for this specific CEFR level (e.g., verb tense, subject-verb agreement, prepositions). The "sentence" must contain exactly ONE error.
+4. **Error Correction (5 questions):** The errors should be common mistakes for this specific CEFR level (e.g., verb tense, subject-verb agreement, prepositions). The sentence must contain exactly ONE error. Provide options A, B, C containing 3 words from the sentence, where one of them is the error. The correctAnswer must be 'A', 'B', or 'C'. The "sentence" field MUST format these three words with underlines and labels, e.g.: "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday." where option B is the error. Provide the correction in the "correctWord" field.
 5. **Fill in the blank (5 questions):** The missing word should be a target vocabulary word or a key functional word. Use "___" to denote the blank space.
 6. Every question MUST be strictly based on the provided text to ensure context.
 7. Provide a brief, encouraging pedagogical explanation for each answer.
 8. All IDs must be unique strings (e.g., "mc1", "tr1").
-9. DO NOT include instructional prefixes like "Translate to Vietnamese:", "Rearrange the words:", "Find and correct the error:", or "Fill in the blank:" in the questionText. Just provide the sentence itself.
+9. DO NOT include instructional prefixes like "Translate to Vietnamese:", "Rearrange the words:", "Find and correct the error:", or "Fill in the blank:" in the questionText. Just provide the sentence or word itself.
 
 Output strictly a JSON object matching this schema:
 {
@@ -642,7 +642,7 @@ Output strictly a JSON object matching this schema:
     ... 10 items
   ],
   "translation": [
-    { "id": "tr1", "questionText": "I saw a beautiful red fox.", "correctAnswer": "Tôi đã thấy một con cáo đỏ tuyệt đẹp.", "explanation": "..." },
+    { "id": "tr1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "A", "explanation": "..." },
     ... 5 items
   ],
   "ordering": [
@@ -650,7 +650,7 @@ Output strictly a JSON object matching this schema:
     ... 5 items
   ],
   "errorCorrection": [
-    { "id": "ec1", "questionText": "He go to school.", "sentence": "He go to school.", "errorWord": "go", "correctWord": "goes", "explanation": "..." },
+    { "id": "ec1", "questionText": "...", "sentence": "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday.", "options": { "A": "He", "B": "go", "C": "school" }, "correctAnswer": "B", "correctWord": "goes", "explanation": "..." },
     ... 5 items
   ],
   "fillBlank": [
