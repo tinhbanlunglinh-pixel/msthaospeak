@@ -16,8 +16,11 @@ const getApiKey = () => {
 };
 
 // We use a function to get the instance so it can pick up changes in localStorage
-const getAI = () => {
-  return new GoogleGenAI({ apiKey: getApiKey() });
+const getAI = (apiVersion?: string) => {
+  return new GoogleGenAI({ 
+    apiKey: getApiKey(),
+    apiVersion: apiVersion || "v1beta"
+  });
 };
 
 // Model fallback chain per AI_INSTRUCTIONS.md
@@ -81,33 +84,38 @@ async function generateWithFallback(
   let lastError: any = null;
 
   for (const model of models) {
-    try {
-      console.log(`Trying model: ${model}`);
-      const response = await getAI().models.generateContent({
-        model,
-        contents: params.contents,
-        config: params.config,
-      });
-      return response;
-    } catch (err: any) {
-      lastError = err;
-      const errorMsg = err?.message || String(err);
-      
-      // Don't fallback for auth errors — they'll fail on all models
-      if (errorMsg.includes("403") || errorMsg.toLowerCase().includes("api key") || errorMsg.includes("invalid")) {
-        throw new Error("INVALID_KEY");
+    const apiVersionsToTry = ["v1", "v1beta"];
+    
+    for (const version of apiVersionsToTry) {
+      try {
+        console.log(`Trying model: ${model} with API version: ${version}`);
+        const response = await getAI(version).models.generateContent({
+          model,
+          contents: params.contents,
+          config: params.config,
+        });
+        return response;
+      } catch (err: any) {
+        lastError = err;
+        const errorMsg = err?.message || String(err);
+        
+        // Don't fallback for auth errors — they'll fail on all models
+        if (errorMsg.includes("403") || errorMsg.toLowerCase().includes("api key") || errorMsg.includes("invalid")) {
+          throw new Error("INVALID_KEY");
+        }
+        
+        console.warn(`Model ${model} failed with API version ${version}: ${errorMsg}`);
       }
-      
-      // For quota/rate limit errors, try next model
-      if (errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("resource_exhausted")) {
-        console.warn(`Model ${model} hit quota limit, trying next model...`);
-        continue;
-      }
-      
-      // For other errors (model not found, etc.), try next model
-      console.warn(`Model ${model} failed: ${errorMsg}, trying next model...`);
+    }
+
+    // If both v1 and v1beta failed for this model, we move to the next model in the chain
+    const errorMsg = lastError?.message || String(lastError);
+    if (errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("resource_exhausted")) {
+      console.warn(`Model ${model} hit quota limit, trying next model...`);
       continue;
     }
+    
+    console.warn(`Model ${model} failed entirely, trying next model...`);
   }
 
   // All models failed
