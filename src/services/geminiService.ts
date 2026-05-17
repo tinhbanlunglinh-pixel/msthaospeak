@@ -4,7 +4,30 @@ const parseSafeJson = (text: string) => {
   let cleaned = (text || "{}").trim();
   // Strip markdown backticks if present
   cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-  return JSON.parse(cleaned);
+  
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    // If generation was truncated due to length limits (30 questions), attempt to gracefully auto-close the JSON
+    const fixes = [
+      cleaned,
+      cleaned + '}',
+      cleaned + ']}',
+      cleaned + '}]}',
+      cleaned + '"}]}',
+      cleaned.replace(/,\s*$/, '') + ']}', // Remove trailing comma and close
+      cleaned.replace(/,\s*$/, '') + '}]}'
+    ];
+    
+    for (const fix of fixes) {
+      try {
+        return JSON.parse(fix);
+      } catch (e) {
+        // Continue trying
+      }
+    }
+    throw err; // If all fixes fail, throw the original error
+  }
 };
 
 const getApiKey = () => {
@@ -678,7 +701,8 @@ Output strictly a JSON object matching this schema:
     config: { 
       systemInstruction,
       responseMimeType: "application/json",
-      temperature: 0.2 // keep it deterministic
+      temperature: 0.2, // keep it deterministic
+      maxOutputTokens: 8192 // Ensure the 30-question JSON is not truncated early
     },
   });
 

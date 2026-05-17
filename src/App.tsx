@@ -18,7 +18,6 @@ import { SpeechEvaluator } from './components/SpeechEvaluator';
 import { CertificateModal } from './components/CertificateModal';
 import { Footer } from './components/Footer';
 import { LessonHistory } from './components/LessonHistory';
-import { FlashcardGame } from './components/FlashcardGame';
 import { ExerciseSection } from './components/ExerciseSection';
 
 // Hooks
@@ -453,8 +452,7 @@ export default function App() {
                         posterRef={posterRef}
                       />
 
-                      {/* Flashcard Vocabulary Game */}
-                      <FlashcardGame vocabulary={vocabulary} />
+
 
                       {/* Speech Evaluator */}
                       <SpeechEvaluator
