@@ -46,18 +46,16 @@ const getApiKey = () => {
 };
 
 // We use a function to get the instance so it can pick up changes in localStorage
-const getAI = (apiVersion?: string) => {
+const getAI = () => {
   return new GoogleGenAI({ 
     apiKey: getApiKey(),
-    apiVersion: apiVersion || "v1beta"
   });
 };
 
-// Model fallback chain per AI_INSTRUCTIONS.md
+// Model fallback chain — use only currently available, non-deprecated models
 const TEXT_MODELS = [
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-2.5-flash-lite",
 ];
 
 // TTS-specific models (only these support responseModalities: [AUDIO] with speechConfig)
@@ -103,6 +101,7 @@ function handleApiError(err: any): never {
 /**
  * Attempts to call generateContent with model fallback.
  * Tries each model in the fallback chain before giving up.
+ * Includes a short retry delay for quota (429) errors.
  */
 async function generateWithFallback(
   models: string[],
@@ -114,12 +113,11 @@ async function generateWithFallback(
   let lastError: any = null;
 
   for (const model of models) {
-    const apiVersionsToTry = ["v1", "v1beta"];
-    
-    for (const version of apiVersionsToTry) {
+    // Retry up to 2 times per model for transient quota errors
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        console.log(`Trying model: ${model} with API version: ${version}`);
-        const response = await getAI(version).models.generateContent({
+        console.log(`Trying model: ${model} (attempt ${attempt + 1})`);
+        const response = await getAI().models.generateContent({
           model,
           contents: params.contents,
           config: params.config,
@@ -133,19 +131,20 @@ async function generateWithFallback(
         if (errorMsg.includes("403") || errorMsg.toLowerCase().includes("api key") || errorMsg.includes("invalid")) {
           throw new Error("INVALID_KEY");
         }
+
+        const isQuota = errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("resource_exhausted");
         
-        console.warn(`Model ${model} failed with API version ${version}: ${errorMsg}`);
+        if (isQuota && attempt === 0) {
+          // Wait 3 seconds before retrying the same model
+          console.warn(`Model ${model} hit quota limit, retrying in 3s...`);
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
+        }
+        
+        console.warn(`Model ${model} failed (attempt ${attempt + 1}): ${errorMsg.substring(0, 200)}`);
+        break; // Move to next model
       }
     }
-
-    // If both v1 and v1beta failed for this model, we move to the next model in the chain
-    const errorMsg = lastError?.message || String(lastError);
-    if (errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("resource_exhausted")) {
-      console.warn(`Model ${model} hit quota limit, trying next model...`);
-      continue;
-    }
-    
-    console.warn(`Model ${model} failed entirely, trying next model...`);
   }
 
   // All models failed
@@ -666,7 +665,7 @@ IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
 2. **Translation (5 questions):** Depending on the level (${level}), select either words (for lower levels like Starters, Movers, Flyers) or full sentences (for higher levels like A1, A2, B1, B2) from the text. This MUST be multiple choice with options A, B, C in Vietnamese. The correctAnswer must be 'A', 'B', or 'C'.
 3. **Ordering (5 questions):** Scramble sentences that test standard English syntax (e.g., Subject-Verb-Object, adjective placement, question formation).
 4. **Error Correction (5 questions):** The errors should be common mistakes for this specific CEFR level (e.g., verb tense, subject-verb agreement, prepositions). The sentence must contain exactly ONE error. Provide options A, B, C containing 3 words from the sentence, where one of them is the error. The correctAnswer must be 'A', 'B', or 'C'. The "sentence" field MUST format these three words with underlines and labels, e.g.: "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday." where option B is the error. Provide the correction in the "correctWord" field.
-5. **Fill in the blank (5 questions):** The missing word should be a target vocabulary word or a key functional word. Use "___" to denote the blank space.
+5. **Fill in the blank (5 questions):** The missing word should be a target vocabulary word or a key functional word. Use "___" to denote the blank space. This MUST be multiple choice with options A, B, C. The correctAnswer must be 'A', 'B', or 'C'.
 6. Every question MUST be strictly based on the provided text to ensure context.
 7. Provide a brief, encouraging pedagogical explanation for each answer STRICTLY IN VIETNAMESE (e.g. "Vì 'yesterday' diễn tả quá khứ đơn nên ta chọn động từ 'went' thay cho 'go'.").
 8. All IDs must be unique strings (e.g., "mc1", "tr1").
@@ -691,7 +690,7 @@ Output strictly a JSON object matching this schema:
     ... 5 items
   ],
   "fillBlank": [
-    { "id": "fb1", "questionText": "He ___ to school.", "sentenceWithBlank": "He ___ to school.", "correctAnswer": "goes", "explanation": "..." },
+    { "id": "fb1", "questionText": "He ___ to school.", "sentenceWithBlank": "He ___ to school.", "options": { "A": "goes", "B": "going", "C": "gone" }, "correctAnswer": "A", "explanation": "..." },
     ... 5 items
   ]
 }`;

@@ -40,7 +40,8 @@ export interface ErrorCorrectionQuestion extends BaseQuestion {
 export interface FillBlankQuestion extends BaseQuestion {
   type: 'fill-blank';
   sentenceWithBlank: string; // Use "___" to denote the blank
-  correctAnswer: string;
+  options: { A: string; B: string; C: string };
+  correctAnswer: 'A' | 'B' | 'C';
 }
 
 export type ExerciseQuestion = 

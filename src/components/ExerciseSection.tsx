@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExerciseData, ExerciseQuestion, MultipleChoiceQuestion, TranslationQuestion, OrderingQuestion, ErrorCorrectionQuestion, FillBlankQuestion } from '../types';
-import { CheckCircle, XCircle, Award, Lightbulb } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle, XCircle, Award } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface ExerciseSectionProps {
   exerciseData: ExerciseData;
@@ -17,15 +17,8 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   // Track selected word indices for Ordering questions
   const [orderingIndices, setOrderingIndices] = useState<Record<string, number[]>>({});
 
-  // Track active hints per question ID
-  const [activeHints, setActiveHints] = useState<Record<string, boolean>>({});
-
   // Track shown results per question ID (for immediate feedback)
   const [shownResults, setShownResults] = useState<Record<string, boolean>>({});
-
-  const toggleHint = (id: string) => {
-    setActiveHints(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const allQuestions: { type: string; title: string; questions: ExerciseQuestion[] }[] = [
     { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: (exerciseData.multipleChoice || []).map(q => ({ ...q, type: 'multiple-choice' })) },
@@ -128,8 +121,8 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   };
 
   const getCorrectAnswer = (q: ExerciseQuestion): string => {
-    if (q.type === 'multiple-choice' || q.type === 'translation') {
-      const mc = q as MultipleChoiceQuestion | TranslationQuestion;
+    if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'fill-blank') {
+      const mc = q as MultipleChoiceQuestion | TranslationQuestion | FillBlankQuestion;
       return `${mc.correctAnswer}. ${mc.options[mc.correctAnswer]}`;
     }
     if (q.type === 'error-correction') {
@@ -141,7 +134,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
 
   const checkCorrect = (q: ExerciseQuestion, answer: string): boolean => {
     if (!answer) return false;
-    if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction') {
+    if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction' || q.type === 'fill-blank') {
       return answer.toLowerCase() === q.correctAnswer.toLowerCase();
     }
     const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -174,16 +167,6 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       return base;
     };
 
-    const getInputClass = () => {
-      let base = 'w-full p-3 rounded-lg border-2 focus:ring-2 focus:ring-brand-green/20 outline-none transition-colors';
-      if (isShown) {
-        base += isCorrect ? ' border-green-500 bg-green-50 text-green-700 font-medium' : ' border-red-500 bg-red-50 text-red-700';
-      } else {
-        base += ' border-slate-200 focus:border-brand-green';
-      }
-      return base;
-    };
-
     return (
       <div key={q.id} className="p-4 sm:p-5 bg-white rounded-xl border border-slate-100 shadow-sm mb-4">
         {/* Style injection for beautiful interactive error underlines */}
@@ -201,62 +184,16 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
         <div className="flex gap-3">
           <span className="font-black text-emerald-600 mt-0.5">{index + 1}.</span>
           <div className="flex-1 space-y-3">
-            <div className="flex justify-between items-start gap-3">
-              {q.type === 'error-correction' ? (
-                <div 
-                  className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed error-correction-sentence flex-1"
-                  dangerouslySetInnerHTML={{ __html: (q as ErrorCorrectionQuestion).sentence.replace(/^(Find and correct the error|Correct the error)[\s:]*/i, '') }}
-                />
-              ) : (
-                <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed flex-1">
-                  {q.questionText.replace(/^(Translate to Vietnamese|Rearrange the words|Fill in the blank|Translate into Vietnamese|Rearrange these words)[\s:]*/i, '')}
-                </p>
-              )}
-              
-              {!submitted && !shownResults[q.id] && (
-                <div className="relative shrink-0">
-                  <button 
-                    type="button"
-                    onClick={() => toggleHint(q.id)}
-                    className={`w-9 h-9 rounded-full border transition-all flex items-center justify-center shadow-sm hover:scale-110 active:scale-95
-                      ${activeHints[q.id] 
-                        ? 'border-amber-400 bg-amber-50 text-amber-500 shadow-amber-50' 
-                        : 'border-slate-200 bg-slate-50 text-slate-400 hover:text-amber-500 hover:bg-amber-50 hover:border-amber-200'
-                      }`}
-                    title={q.explanation}
-                  >
-                    <Lightbulb size={16} />
-                  </button>
-                  
-                  {/* Floating premium popover tooltip */}
-                  <AnimatePresence>
-                    {activeHints[q.id] && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => toggleHint(q.id)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                          className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-slate-900/95 text-white rounded-xl shadow-xl z-50 text-xs leading-relaxed border border-slate-800"
-                        >
-                          <div className="absolute right-3 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900/95" />
-                          <div className="flex items-start gap-1.5 font-medium">
-                            <span className="text-amber-400 text-sm">💡</span>
-                            <div>
-                              <span className="text-amber-400 font-extrabold uppercase text-[9px] tracking-wider block mb-0.5">Cô Thảo Gợi Ý</span>
-                              {q.explanation}
-                            </div>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
+            {q.type === 'error-correction' ? (
+              <div 
+                className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed error-correction-sentence"
+                dangerouslySetInnerHTML={{ __html: (q as ErrorCorrectionQuestion).sentence.replace(/^(Find and correct the error|Correct the error)[\s:]*/i, '') }}
+              />
+            ) : (
+              <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">
+                {q.questionText.replace(/^(Translate to Vietnamese|Rearrange the words|Fill in the blank|Translate into Vietnamese|Rearrange these words)[\s:]*/i, '')}
+              </p>
+            )}
 
             {/* Ordering Question Interface */}
             {q.type === 'ordering' && (
@@ -314,10 +251,10 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
               <p className="font-medium text-slate-600 italic">{(q as FillBlankQuestion).sentenceWithBlank}</p>
             )}
 
-            {/* Multiple Choice Options (for multiple-choice, translation, error-correction) */}
-            {(q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction') ? (
+            {/* Multiple Choice Options (for multiple-choice, translation, error-correction, fill-blank) */}
+            {(q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction' || q.type === 'fill-blank') ? (
               <div className="space-y-2 mt-2">
-                {Object.entries((q as MultipleChoiceQuestion | TranslationQuestion | ErrorCorrectionQuestion).options).map(([key, val]) => (
+                {Object.entries((q as MultipleChoiceQuestion | TranslationQuestion | ErrorCorrectionQuestion | FillBlankQuestion).options).map(([key, val]) => (
                   <label key={key} className={getLabelClass(key)}>
                     <input 
                       type="radio" 
@@ -333,31 +270,6 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
                   </label>
                 ))}
               </div>
-            ) : q.type === 'fill-blank' ? (
-              <input
-                type="text"
-                disabled={submitted}
-                value={userAnswer}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setAnswers(prev => ({ ...prev, [q.id]: val }));
-                  if (!val.trim()) {
-                    setShownResults(prev => ({ ...prev, [q.id]: false }));
-                  }
-                }}
-                onBlur={(e) => {
-                  if (e.target.value.trim()) {
-                    setShownResults(prev => ({ ...prev, [q.id]: true }));
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.currentTarget.blur();
-                  }
-                }}
-                placeholder="Nhập câu trả lời..."
-                className={getInputClass()}
-              />
             ) : null}
 
             {isShown && userAnswer && (

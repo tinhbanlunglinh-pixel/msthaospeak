@@ -106,7 +106,8 @@ export default function App() {
       audioPlayer.setAudioUrl(null);
       recorder.setEvaluation(null);
 
-      // 2. Generate exercises first (critical for certificate)
+      // 2. Generate exercises (with a short delay to avoid quota limits on free-tier keys)
+      await new Promise(r => setTimeout(r, 2000));
       const exData = text ? await generateExercise(text, level).catch(err => {
         console.error("Exercise generation failed", err);
         return null;
