@@ -189,6 +189,11 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
                 className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed error-correction-sentence"
                 dangerouslySetInnerHTML={{ __html: (q as ErrorCorrectionQuestion).sentence.replace(/^(Find and correct the error|Correct the error)[\s:]*/i, '') }}
               />
+            ) : q.type === 'fill-blank' ? (
+              <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed flex items-start gap-2">
+                <span className="text-xl leading-none mt-0.5 shrink-0" title="Gợi ý">{(q as FillBlankQuestion).hintEmoji || '📝'}</span>
+                <span>{(q as FillBlankQuestion).sentenceWithBlank.replace(/^(Fill in the blank)[\s:]*/i, '')}</span>
+              </p>
             ) : (
               <p className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">
                 {q.questionText.replace(/^(Translate to Vietnamese|Rearrange the words|Fill in the blank|Translate into Vietnamese|Rearrange these words)[\s:]*/i, '')}
@@ -247,9 +252,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
               </div>
             )}
 
-            {q.type === 'fill-blank' && (
-              <p className="font-medium text-slate-600 italic">{(q as FillBlankQuestion).sentenceWithBlank}</p>
-            )}
+            {/* fill-blank specific UI is now rendered above, no need for duplicate italic text */}
 
             {/* Multiple Choice Options (for multiple-choice, translation, error-correction, fill-blank) */}
             {(q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction' || q.type === 'fill-blank') ? (

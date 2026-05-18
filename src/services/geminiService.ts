@@ -673,6 +673,7 @@ IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
 7. Provide a brief, encouraging pedagogical explanation for each answer STRICTLY IN VIETNAMESE (e.g. "Vì 'yesterday' diễn tả quá khứ đơn nên ta chọn động từ 'went' thay cho 'go'.").
 8. All IDs must be unique strings (e.g., "mc1", "tr1").
 9. DO NOT include instructional prefixes like "Translate to Vietnamese:", "Rearrange the words:", "Find and correct the error:", or "Fill in the blank:" in the questionText. Just provide the sentence or word itself.
+10. For Fill in the blank questions, provide a "hintEmoji" (a single emoji that visually represents the missing word or context, e.g. 🍎 for apple, 🏃 for running) to help students guess the answer.
 
 Output strictly a JSON object matching this schema:
 {
@@ -693,7 +694,7 @@ Output strictly a JSON object matching this schema:
     ... 5 items
   ],
   "fillBlank": [
-    { "id": "fb1", "questionText": "He ___ to school.", "sentenceWithBlank": "He ___ to school.", "options": { "A": "goes", "B": "going", "C": "gone" }, "correctAnswer": "A", "explanation": "..." },
+    { "id": "fb1", "questionText": "He ___ to school.", "sentenceWithBlank": "He ___ to school.", "hintEmoji": "🏫", "options": { "A": "goes", "B": "going", "C": "gone" }, "correctAnswer": "A", "explanation": "..." },
     ... 5 items
   ]
 }`;
