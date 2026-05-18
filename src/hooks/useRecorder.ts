@@ -22,7 +22,7 @@ export function useRecorder(
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const handleEvaluate = useCallback(async (audioBlob: Blob) => {
+  const handleEvaluate = useCallback(async (audioBlob: Blob, mimeType: string) => {
     if (!readingText) return;
 
     setIsEvaluating(true);
@@ -32,7 +32,7 @@ export function useRecorder(
       reader.onloadend = async () => {
         try {
           const base64Audio = (reader.result as string).split(',')[1];
-          const result = await evaluateSpeech(readingText, base64Audio, level);
+          const result = await evaluateSpeech(readingText, base64Audio, level, mimeType);
           setEvaluation(result);
           setIsEvaluating(false);
         } catch (err: any) {
@@ -86,8 +86,9 @@ export function useRecorder(
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await handleEvaluate(audioBlob);
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        await handleEvaluate(audioBlob, mimeType);
         stream.getTracks().forEach(track => track.stop());
       };
 

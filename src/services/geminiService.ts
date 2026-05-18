@@ -544,7 +544,8 @@ export interface EvaluationResult {
 export const evaluateSpeech = async (
   originalText: string,
   audioData: string,
-  level: EnglishLevel
+  level: EnglishLevel,
+  mimeType: string = "audio/webm"
 ): Promise<EvaluationResult> => {
   const systemInstruction = `Bạn là một giám khảo chấm phát âm tiếng Anh chuẩn quốc tế (IPA, CEFR) cực kỳ nghiêm túc nhưng cũng rất yêu thương, đóng vai Ms Thao.
 
@@ -606,7 +607,7 @@ Output định dạng JSON:
           { text: `Original Text: ${originalText}\nTarget Level: ${level}\nAnalyze the audio carefully word by word.` },
           {
             inlineData: {
-              mimeType: "audio/wav",
+              mimeType: mimeType.split(';')[0] || "audio/webm",
               data: audioData,
             },
           },
@@ -615,7 +616,8 @@ Output định dạng JSON:
     ],
     config: { 
       systemInstruction,
-      responseMimeType: "application/json"
+      responseMimeType: "application/json",
+      maxOutputTokens: 8192
     },
   });
 
@@ -640,7 +642,8 @@ Output định dạng JSON:
     if (msg.includes("429") || msg.toLowerCase().includes("quota")) {
       throw new Error("QUOTA_EXCEEDED");
     }
-    throw new Error("Failed to evaluate speech. Please try again.");
+    // Propagate the original error message for easier debugging
+    throw new Error(msg || "Failed to evaluate speech. Please try again.");
   }
 };
 
