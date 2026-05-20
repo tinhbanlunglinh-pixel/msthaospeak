@@ -11,91 +11,6 @@ interface UseRecorderReturn {
   stopRecording: () => void;
 }
 
-// ─── WAV Conversion Utilities ────────────────────────────────────────
-// Convert recorded audio (webm/opus) → WAV PCM 16-bit mono 16kHz
-// WAV is the most universally compatible format for speech recognition.
-
-function writeString(view: DataView, offset: number, str: string) {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i));
-  }
-}
-
-function encodeWAV(samples: Float32Array, sampleRate: number): ArrayBuffer {
-  const numSamples = samples.length;
-  const buffer = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(buffer);
-
-  // RIFF header
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + numSamples * 2, true);
-  writeString(view, 8, 'WAVE');
-
-  // fmt sub-chunk
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);       // SubChunk1Size (PCM = 16)
-  view.setUint16(20, 1, true);        // AudioFormat (PCM = 1)
-  view.setUint16(22, 1, true);        // NumChannels (mono = 1)
-  view.setUint32(24, sampleRate, true); // SampleRate
-  view.setUint32(28, sampleRate * 2, true); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
-  view.setUint16(32, 2, true);        // BlockAlign (NumChannels * BitsPerSample/8)
-  view.setUint16(34, 16, true);       // BitsPerSample
-
-  // data sub-chunk
-  writeString(view, 36, 'data');
-  view.setUint32(40, numSamples * 2, true);
-
-  // Convert Float32 [-1.0, 1.0] → Int16 [-32768, 32767]
-  let offset = 44;
-  for (let i = 0; i < numSamples; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    offset += 2;
-  }
-
-  return buffer;
-}
-
-/**
- * Convert a recorded audio Blob (any format) to WAV PCM 16kHz mono.
- * This ensures maximum compatibility with Gemini's speech recognition.
- */
-async function convertToWav(blob: Blob): Promise<Blob> {
-  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-  const audioContext = new AudioCtx();
-
-  try {
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-    // Resample to 16kHz mono — optimal for speech recognition
-    const TARGET_SAMPLE_RATE = 16000;
-    const duration = audioBuffer.duration;
-    const offlineCtx = new OfflineAudioContext(
-      1, // mono
-      Math.ceil(duration * TARGET_SAMPLE_RATE),
-      TARGET_SAMPLE_RATE
-    );
-
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start(0);
-
-    const renderedBuffer = await offlineCtx.startRendering();
-    const channelData = renderedBuffer.getChannelData(0);
-
-    console.log(`[WAV Convert] ${blob.size} bytes ${blob.type} → WAV PCM 16kHz mono, ${channelData.length} samples, ${duration.toFixed(1)}s`);
-
-    const wavBuffer = encodeWAV(channelData, TARGET_SAMPLE_RATE);
-    return new Blob([wavBuffer], { type: 'audio/wav' });
-  } finally {
-    await audioContext.close();
-  }
-}
-
-// ─── Main Hook ───────────────────────────────────────────────────────
-
 export function useRecorder(
   readingText: string | null,
   level: EnglishLevel,
@@ -129,22 +44,7 @@ export function useRecorder(
 
     setIsEvaluating(true);
     try {
-      // ── Step 1: Convert to WAV for best Gemini compatibility ──
-      let finalBlob = audioBlob;
-      let finalMimeType = mimeType;
-
-      try {
-        console.log(`[Recorder] Converting ${mimeType} (${audioBlob.size} bytes) to WAV...`);
-        finalBlob = await convertToWav(audioBlob);
-        finalMimeType = 'audio/wav';
-        console.log(`[Recorder] WAV conversion OK: ${finalBlob.size} bytes`);
-      } catch (convErr) {
-        // Fallback: use original format if WAV conversion fails
-        console.warn('[Recorder] WAV conversion failed, using original format:', convErr);
-        finalMimeType = mimeType.split(';')[0] || 'audio/webm';
-      }
-
-      // ── Step 2: Convert to base64 ──
+      // ── Step 1: Convert raw recorded audio to base64 ──
       const base64Audio = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -155,18 +55,19 @@ export function useRecorder(
               reject(new Error("Audio data is empty or too small. Please try recording again."));
               return;
             }
-            console.log(`[Recorder] Base64 ready: ${base64.length} chars, mimeType=${finalMimeType}`);
+            console.log(`[Recorder] Raw Base64 ready: ${base64.length} chars, mimeType=${mimeType}`);
             resolve(base64);
           } catch (err) {
             reject(err);
           }
         };
         reader.onerror = () => reject(new Error("Failed to read audio file"));
-        reader.readAsDataURL(finalBlob);
+        reader.readAsDataURL(audioBlob);
       });
 
-      // ── Step 3: Send to Gemini for evaluation ──
-      const result = await evaluateSpeech(currentText, base64Audio, currentLevel, finalMimeType);
+      // ── Step 2: Send raw base64 to Gemini for evaluation ──
+      // Gemini natively accepts audio/webm, audio/mp4, audio/ogg, audio/wav, audio/mp3
+      const result = await evaluateSpeech(currentText, base64Audio, currentLevel, mimeType);
       setEvaluation(result);
       setIsEvaluating(false);
     } catch (err: any) {
@@ -262,7 +163,10 @@ export function useRecorder(
         }
       };
 
-      mediaRecorder.start(1000); // Capture data every 1 second for reliability
+      // Start recording. Do NOT pass a timeslice (e.g. 1000) so the browser buffers
+      // and outputs a single, well-formed container file upon stop. This is far more robust
+      // across different browsers and avoids chunk index/header corruption issues.
+      mediaRecorder.start();
       isRecordingRef.current = true;
       setIsRecording(true);
       setEvaluation(null);
