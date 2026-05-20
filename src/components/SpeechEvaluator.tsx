@@ -33,24 +33,31 @@ export const SpeechEvaluator: React.FC<SpeechEvaluatorProps> = ({
           <span>Ms Thao: Luyện nói cùng cô giáo</span>
         </div>
         
-        {!evaluation && !isEvaluating && (
+        {!evaluation && !isEvaluating && !isRecording && (
           <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`flex items-center gap-3 px-5 sm:px-6 py-3 rounded-2xl font-black text-white transition-all shadow-xl text-sm sm:text-base
-              ${isRecording 
-                ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-105' 
-                : 'bg-emerald-500 hover:bg-emerald-600 hover:-translate-y-1'}`}
+            onClick={startRecording}
+            className="flex items-center gap-3 px-5 sm:px-6 py-3 rounded-2xl font-black text-white transition-all shadow-xl text-sm sm:text-base bg-emerald-500 hover:bg-emerald-600 hover:-translate-y-1"
             style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
           >
-            {isRecording ? <Square size={20} fill="currentColor" /> : <Mic size={20} />}
-            {isRecording ? 'Đang nghe bé nói...' : 'Bắt đầu luyện nói'}
+            <Mic size={20} />
+            Bắt đầu luyện nói
           </button>
         )}
 
-        {isRecording && (
-          <p className="text-[10px] text-red-400 font-bold animate-pulse">
-            Mẹo: Sau khi đọc xong, bé chờ 1 giây rồi hãy nhấn nút dừng nhé!
-          </p>
+        {isRecording && !isEvaluating && (
+          <>
+            <button
+              onClick={stopRecording}
+              className="flex items-center gap-3 px-5 sm:px-6 py-3 rounded-2xl font-black text-white transition-all shadow-xl text-sm sm:text-base bg-red-500 hover:bg-red-600 animate-pulse scale-105"
+              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+            >
+              <Square size={20} fill="currentColor" />
+              Đang nghe bé nói...
+            </button>
+            <p className="text-[10px] text-red-400 font-bold animate-pulse">
+              Mẹo: Sau khi đọc xong, bé chờ 1 giây rồi hãy nhấn nút dừng nhé!
+            </p>
+          </>
         )}
 
         {isEvaluating && (
