@@ -179,7 +179,7 @@ export const generateContent = async (
     ? "The content MUST be professional, educational, and follow Cambridge curriculum styles. Use clear, descriptive, and engaging language with a tone that sounds like a native English-speaking child or a friendly teacher speaking to a child. The passage should be about the topic and the image. The text MUST be written as a cohesive reading passage or story in standard paragraph format. DO NOT use line breaks after every sentence or format it as a poem/chant unless explicitly requested."
     : '';
 
-  const systemInstruction = `You are an expert educational content creator for English learners, strictly following the CEFR (Common European Framework of Reference for Languages) and Cambridge English Qualifications standards (Starters, Movers, Flyers, KET, PET).
+  const systemInstruction = `You are a highly skilled, expert English teacher and educational content creator for English learners. You strictly follow the CEFR (Common European Framework of Reference for Languages) and Cambridge English Qualifications standards (Starters, Movers, Flyers, KET, PET).
   ${useInputInstructions}
   Your task is to generate:
   1. An image generation prompt for a highly realistic, crystal clear, and engaging educational illustration. The prompt MUST include quality keywords such as: "photorealistic, highly detailed, perfect anatomy, sharp focus, 8k UHD resolution, National Geographic photography style, professional lighting, vivid colors, no distortion, anatomically correct, full body in frame, DSLR quality". Avoid abstract, blurry, cartoon, or distorted styles.
@@ -192,12 +192,28 @@ export const generateContent = async (
   4. A Vietnamese translation of the reading passage. ${mode === 'useInput' ? 'Translate the COMPLETE text, not a summary.' : ''}
   5. A list of 3-5 key vocabulary words from the text with their IPA pronunciation and a very brief, concise Vietnamese meaning (strictly in Vietnamese, DO NOT include any English explanations, long definitions, or secondary translations).
   
-  Cambridge Level Specifics (ONLY for 'generate' mode, IGNORE these word limits for 'useInput' mode):
-  - Starters (Pre-A1): Focus on nouns, colors, numbers, and simple actions. 20-40 words.
-  - Movers (A1): Simple present, present continuous, basic descriptions. 40-60 words.
-  - Flyers (A2): Past simple, future with 'going to', comparisons. 60-80 words.
-  - A1/A2: Standard CEFR elementary content.
-  - B1/B2: More complex structures, opinions, and abstract concepts.
+  Cambridge & CEFR Level Specifics (ONLY for 'generate' mode, IGNORE these limits for 'useInput' mode):
+  - Starters (Pre-A1): 
+    * Word Count: STRICTLY 15 to 25 words. 
+    * Grammar: Only simple present tense of 'to be' (am/is/are), 'have got', 'can' (for ability), simple nouns, basic colors, animals, objects, and basic adjectives. Only simple sentences (Subject + Verb + Object). Absolutely NO compound sentences (no 'and', 'but' joining clauses), NO past/future tense, and NO complex vocabulary.
+  - Movers (A1): 
+    * Word Count: STRICTLY 25 to 45 words.
+    * Grammar: Simple present, present continuous, basic prepositions of place (in, on, under, next to, behind), basic modal verbs (can/must), simple descriptions.
+  - Flyers (A2): 
+    * Word Count: STRICTLY 45 to 65 words.
+    * Grammar: Past simple, future with 'going to', basic comparative adjectives, simple conjunctions (and, but, because).
+  - A1: 
+    * Word Count: STRICTLY 40 to 60 words.
+    * Grammar: Simple tenses (present, past, future). Simple everyday vocabulary.
+  - A2: 
+    * Word Count: STRICTLY 60 to 80 words.
+    * Grammar: Present perfect (simple experiences), past continuous, basic relative clauses (who/which/that), simple modal verbs (should/could).
+  - B1: 
+    * Word Count: STRICTLY 100 to 150 words.
+    * Grammar: Past perfect, passive voice, relative clauses, compound and complex sentences, expressing opinions and plans.
+  - B2: 
+    * Word Count: STRICTLY 150 to 200 words.
+    * Grammar: Conditional sentences (type 1, 2, 3), passive voice, advanced tenses, subjunctions, complex structures.
   
   User Information (if provided):
   - Name: ${userName || 'Unknown'}
@@ -702,8 +718,9 @@ export const generateExercise = async (
   readingText: string,
   level: EnglishLevel
 ): Promise<ExerciseData> => {
-  const systemInstruction = `You are an expert English teacher. Create exactly 30 exercise questions based ON THE PROVIDED READING TEXT.
-The level is: ${level}.
+  const systemInstruction = `You are a highly skilled English pedagogical expert and school teacher. Create exactly 30 exercise questions based ON THE PROVIDED READING TEXT.
+The student level is: ${level}. You must pay close attention to grammar, logical structures, correct syntax, and ensure all questions and correctAnswers are 100% grammatically correct.
+
 The questions must be structured exactly as requested in the JSON format.
 There must be EXACTLY:
 - 10 multiple-choice questions (A, B, C)
@@ -715,7 +732,12 @@ There must be EXACTLY:
 IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
 1. **Multiple Choice (10 questions):** Focus on Reading Comprehension (main idea, details, inference, vocabulary in context). Distractors (incorrect options) must be plausible but clearly wrong.
 2. **Translation (5 questions):** Depending on the level (${level}), select either words (for lower levels like Starters, Movers, Flyers) or full sentences (for higher levels like A1, A2, B1, B2) from the text. This MUST be multiple choice with options A, B, C in Vietnamese. The correctAnswer must be 'A', 'B', or 'C'.
-3. **Ordering (5 questions):** Scramble sentences that test standard English syntax (e.g., Subject-Verb-Object, adjective placement, question formation).
+3. **Ordering (5 questions):** Scramble sentences from or closely related to the reading text that test standard English syntax.
+   🚨 CRITICAL RULE FOR ORDERING WORDS:
+   - The "words" array MUST contain EXACTLY the words of the "correctAnswer" in a scrambled order.
+   - Do NOT include any extra words that are not in the "correctAnswer" (like extra articles, pronouns, or prepositions).
+   - Do NOT miss any words. Every word in the "correctAnswer" must appear exactly once in the "words" array.
+   - Punctuation (such as a period, question mark, or exclamation mark) must remain attached to the last word of both "words" and "correctAnswer" (e.g. if the correctAnswer is "Look at the bear.", then the word in the words array must be "bear.").
 4. **Error Correction (5 questions):** The errors should be common mistakes for this specific CEFR level (e.g., verb tense, subject-verb agreement, prepositions). The sentence must contain exactly ONE error. Provide options A, B, C containing 3 words from the sentence, where one of them is the error. The correctAnswer must be 'A', 'B', or 'C'. The "sentence" field MUST format these three words with underlines and labels, e.g.: "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday." where option B is the error. Provide the correction in the "correctWord" field.
 5. **Fill in the blank (5 questions):** The missing word should be a target vocabulary word or a key functional word. Use "___" to denote the blank space. This MUST be multiple choice with options A, B, C. The correctAnswer must be 'A', 'B', or 'C'.
 6. Every question MUST be strictly based on the provided text to ensure context.
@@ -739,7 +761,7 @@ Output strictly a JSON object matching this schema:
     ... 5 items
   ],
   "errorCorrection": [
-    { "id": "ec1", "questionText": "...", "sentence": "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday.", "options": { "A": "He", "B": "go", "C": "school" }, "correctAnswer": "B", "correctWord": "goes", "explanation": "..." },
+    { "id": "ec1", "questionText": "...", "sentence": "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday.", "options": { "A": "He", "B": "go", "C": "school" }, "correctAnswer": "B", "correctWord": "went", "explanation": "..." },
     ... 5 items
   ],
   "fillBlank": [
