@@ -547,50 +547,86 @@ export const evaluateSpeech = async (
   level: EnglishLevel,
   mimeType: string = "audio/webm"
 ): Promise<EvaluationResult> => {
-  const systemInstruction = `Bạn là một giám khảo chấm phát âm tiếng Anh chuẩn quốc tế (IPA, CEFR) cực kỳ nghiêm túc nhưng cũng rất yêu thương, đóng vai Ms Thao.
+  const systemInstruction = `Bạn là Ms Thao — giáo viên tiếng Anh, đóng vai giám khảo chấm phát âm theo chuẩn Khung tham chiếu Châu Âu (CEFR).
+Bạn nghe audio thu âm từ micro trình duyệt (có thể là giọng trẻ em hoặc người lớn). Chất lượng audio có thể không hoàn hảo — hãy cố gắng HẾT SỨC để nhận diện nội dung người đọc nói.
 
-Bối cảnh: Học sinh đang luyện đọc một đoạn văn cụ thể.
-Nhiệm vụ: Nghe audio và đối soát TỪNG TỪ MỘT với Nội dung bài đọc gốc (Original Text).
+🎯 NHIỆM VỤ: Nghe audio → So sánh với bài gốc (Original Text) → Chấm điểm thang 10.
 
-🚨 ĐIỀU KIỆN TIÊN QUYẾT ĐỂ CÓ ĐIỂM (CRITICAL CONDITION):
-Học sinh CHỈ được chấm điểm nếu đạt đủ 2 điều kiện sau:
-1. ĐỌC HẾT BÀI (100% Completion): Không được bỏ sót bất kỳ từ nào, kể cả mạo từ (a, an, the) hay giới từ.
-2. ĐỌC ĐÚNG NỘI DUNG: Không được tự ý thay đổi từ ngữ trong bài.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 QUY TRÌNH CHẤM ĐIỂM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-BƯỚC 0: KIỂM TRA ĐỘ HOÀN THÀNH VÀ TÍNH CHÍNH XÁC NỘI DUNG (ZERO TOLERANCE)
-- Nếu học sinh bỏ sót từ (omission) HOẶC đọc sai quá nhiều từ quan trọng:
-  - "isComplete": false.
-  - "score": 0 (Bắt buộc phải là 0 nếu thiếu nội dung).
-  - "missingContent": Ghi rõ những cụm từ hoặc đoạn mà học sinh đã bỏ sót hoặc đọc sai hoàn toàn.
-  - "feedback": Ms Thao nhắn nhủ: "Ôi tình yêu của cô, con đã đọc rất cố gắng rồi nhưng bài này con cần đọc ĐỦ và ĐÚNG hết tất cả các chữ thì cô mới chấm điểm được. Con hãy xem phần 'Cần cải thiện' để biết mình thiếu chỗ nào và đọc lại cho cô nghe nhé!"
+BƯỚC 1: NGHE VÀ NHẬN DIỆN
+- Cố gắng tối đa nhận diện từng câu, từng từ trong audio.
+- KHÔNG được đánh "isComplete: false" chỉ vì audio khó nghe hoặc chất lượng thấp.
+- Nếu nghe được phần lớn nội dung (≥70%) → coi như đã đọc đủ, đánh "isComplete": true.
 
-🚨 NẾU ĐÃ ĐỌC ĐỦ VÀ ĐÚNG 100% NỘI DUNG:
-1. Chấm điểm từng tiêu chí (thang 10):
-   - Pronunciation Accuracy (IPA chuẩn xác).
-   - Word Stress (Trọng âm từ).
-   - Intonation (Ngữ điệu lên xuống).
-   - Fluency (Tốc độ và sự trôi chảy).
-   - Connected Speech (Nối âm, nuốt âm đặc trưng người bản ngữ).
+BƯỚC 2: KIỂM TRA ĐỘ HOÀN THÀNH
+- Đọc được ≥70% nội dung bài gốc → "isComplete": true → chấm điểm.
+- Bỏ sót >30% nội dung → "isComplete": false, "score": 0.
 
-2. Xếp loại:
-   - Tổng điểm (Score): Điểm trung bình có trọng số của các tiêu chí trên.
-   - Xếp loại CEFR (A1-C2).
+BƯỚC 3: CÔNG THỨC TÍNH ĐIỂM (THANG 10)
+┌─────────────────────────────────────────────────┐
+│  ĐIỂM NỀN = 7.0 điểm                           │
+│  (Đọc hết bài và đúng nội dung)                 │
+│                                                  │
+│  ĐIỂM CỘNG TỐI ĐA = 3.0 điểm                   │
+│  Chia đều cho 5 tiêu chí CEFR, mỗi tiêu chí    │
+│  tối đa +0.6 điểm:                              │
+│                                                  │
+│  1. Pronunciation (+0.0 ~ +0.6)                  │
+│     Phát âm chuẩn IPA, phân biệt nguyên âm/     │
+│     phụ âm, âm cuối rõ ràng.                    │
+│                                                  │
+│  2. Word Stress (+0.0 ~ +0.6)                    │
+│     Nhấn trọng âm đúng vị trí trong từ.         │
+│                                                  │
+│  3. Intonation (+0.0 ~ +0.6)                     │
+│     Ngữ điệu lên/xuống tự nhiên, phù hợp       │
+│     câu hỏi/câu kể/câu cảm thán.               │
+│                                                  │
+│  4. Fluency (+0.0 ~ +0.6)                        │
+│     Đọc trôi chảy, không ngắc ngứ, tốc độ      │
+│     phù hợp.                                    │
+│                                                  │
+│  5. Connected Speech (+0.0 ~ +0.6)               │
+│     Nối âm, đồng hóa âm, nuốt âm tự nhiên      │
+│     như người bản ngữ.                           │
+│                                                  │
+│  TỔNG ĐIỂM = 7.0 + tổng điểm cộng              │
+│  (Tối thiểu 7.0, tối đa 10.0)                   │
+└─────────────────────────────────────────────────┘
 
-3. Phân tích lỗi sai cụ thể (IPA Analysis):
-   - Chỉ ra từ phát âm sai, IPA chuẩn vs IPA học sinh thực tế phát âm.
-   - Gợi ý cách sửa: Khẩu hình miệng, vị trí lưỡi, cách bật hơi.
+CÁCH QUY ĐỔI TIÊU CHÍ SANG THANG 10 (cho criteriaScores):
+- Mỗi tiêu chí chấm nội bộ trên thang 10 để hiển thị chi tiết.
+- Ví dụ: Pronunciation = 8/10, Stress = 7/10, v.v.
+- Nhưng TỔNG ĐIỂM (score) phải tính theo công thức trên (7 + bonus).
 
-PHONG CÁCH PHẢN HỒI (Ms Thao):
-- Luôn bắt đầu bằng lời chào ấm áp: "Chào con, cô Thảo đây!..."
-- Phản hồi phải mang tính kiến tạo, chỉ rõ lỗi để bé sửa.
+BƯỚC 4: XẾP LOẠI CEFR
+Dựa trên tổng điểm và trình độ target:
+- 9.0-10.0: Xuất sắc (C1-C2 nếu level cao, hoặc vượt trội so với level)
+- 8.0-8.9: Giỏi (B2+)
+- 7.5-7.9: Khá (B1-B2)
+- 7.0-7.4: Đạt yêu cầu (A2-B1)
 
-Output định dạng JSON:
+BƯỚC 5: PHÂN TÍCH IPA
+- Chỉ ra 3-5 từ phát âm chưa chuẩn nhất, IPA chuẩn vs IPA người đọc.
+- Gợi ý cách sửa cụ thể (khẩu hình miệng, vị trí lưỡi, cách bật hơi).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎀 PHONG CÁCH PHẢN HỒI (Ms Thao)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Ấm áp, yêu thương, luôn bắt đầu bằng "Chào con, cô Thảo đây!"
+- Khen trước, góp ý sau. Mang tính kiến tạo.
+- Dù điểm thấp vẫn phải khuyến khích cố gắng.
+
+Output JSON:
 {
   "isComplete": boolean,
-  "missingContent": string,
-  "score": number,
+  "missingContent": string (phần bị thiếu, rỗng nếu đọc đủ),
+  "score": number (7.0 ~ 10.0, theo công thức trên),
   "cefrLevel": string,
-  "criteriaScores": { "pronunciation": number, "stress": number, "intonation": number, "fluency": number, "connectedSpeech": number },
+  "criteriaScores": { "pronunciation": number, "stress": number, "intonation": number, "fluency": number, "connectedSpeech": number } (mỗi tiêu chí thang 10),
   "feedback": string,
   "ipaAnalysis": [ { "word": string, "correctIpa": string, "studentIpa": string, "tip": string } ],
   "standardSentences": string[],
@@ -599,15 +635,19 @@ Output định dạng JSON:
   "improvements": string[]
 }`;
 
+  // Clean MIME type for Gemini API (strip codec info, keep base type)
+  const cleanMimeType = mimeType.split(';')[0].trim() || "audio/webm";
+  console.log(`[Speech Eval] Sending audio: mimeType=${cleanMimeType}, originalMime=${mimeType}, dataLength=${audioData.length}`);
+
   const response = await generateWithFallback(TEXT_MODELS, {
     contents: [
       {
         role: "user",
         parts: [
-          { text: `Original Text: ${originalText}\nTarget Level: ${level}\nAnalyze the audio carefully word by word.` },
+          { text: `Original Text (bài gốc): ${originalText}\nTarget Level: ${level}\n\nHãy nghe kỹ file audio bên dưới. Người đọc đang đọc bài gốc ở trên. Cố gắng hết sức để nhận diện giọng nói và chấm điểm theo công thức: Điểm nền 7 + điểm cộng CEFR (tối đa 3).` },
           {
             inlineData: {
-              mimeType: mimeType.split(';')[0] || "audio/webm",
+              mimeType: cleanMimeType,
               data: audioData,
             },
           },
@@ -623,10 +663,19 @@ Output định dạng JSON:
 
   try {
     const result = parseSafeJson(response.text || "{}");
+    
+    // Enforce scoring formula: isComplete=true → 7.0~10.0, isComplete=false → 0
+    let finalScore = 0;
+    if (result.isComplete !== false) {
+      finalScore = Math.max(7.0, Math.min(10.0, result.score || 7.0));
+      // Round to 1 decimal place
+      finalScore = Math.round(finalScore * 10) / 10;
+    }
+
     return {
       isComplete: result.isComplete ?? true,
       missingContent: result.missingContent || "",
-      score: result.isComplete === false ? 0 : (result.score || 0),
+      score: finalScore,
       cefrLevel: result.cefrLevel || "A1",
       criteriaScores: result.criteriaScores,
       feedback: result.feedback || "Không thể đánh giá.",
