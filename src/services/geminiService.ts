@@ -745,15 +745,16 @@ IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
 8. All IDs must be unique strings (e.g., "mc1", "tr1").
 9. DO NOT include instructional prefixes like "Translate to Vietnamese:", "Rearrange the words:", "Find and correct the error:", or "Fill in the blank:" in the questionText. Just provide the sentence or word itself.
 10. For Fill in the blank questions, provide a "hintEmoji" (a single emoji that visually represents the missing word or context, e.g. 🍎 for apple, 🏃 for running) to help students guess the answer.
+11. 🚨 **EVEN DISTRIBUTION OF CORRECT ANSWERS:** You MUST distribute the correct answers ('A', 'B', 'C') as evenly as possible. For example, among the 10 multipleChoice questions, do NOT make 'A' the correct answer for all of them; instead, have about 3-4 questions with correct answer 'A', 3-4 with 'B', and 3-4 with 'C'. Balance this distribution for all multiple-choice style sections.
 
 Output strictly a JSON object matching this schema:
 {
   "multipleChoice": [
-    { "id": "mc1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "A", "explanation": "..." (brief, helpful explanation in Vietnamese) },
+    { "id": "mc1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "B", "explanation": "..." (brief, helpful explanation in Vietnamese) },
     ... 10 items
   ],
   "translation": [
-    { "id": "tr1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "A", "explanation": "..." },
+    { "id": "tr1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "C", "explanation": "..." },
     ... 5 items
   ],
   "ordering": [

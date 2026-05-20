@@ -9,7 +9,35 @@ interface ExerciseSectionProps {
   savedScore?: number | null;
 }
 
+// Helper function to dynamically shuffle multiple-choice options (A, B, C)
+function shuffleSingleQuestionOptions<T extends { options: Record<string, string>; correctAnswer: string }>(q: T): T {
+  const optionEntries = Object.entries(q.options); // e.g. [['A', 'option1'], ['B', 'option2'], ['C', 'option3']]
+  const correctText = q.options[q.correctAnswer];
+  
+  // Scramble the options array randomly
+  const shuffledEntries = [...optionEntries].sort(() => Math.random() - 0.5);
+  
+  const keys = ['A', 'B', 'C'];
+  const newOptions: Record<string, string> = {};
+  let newCorrectAnswer = '';
+  
+  shuffledEntries.forEach((entry, idx) => {
+    const key = keys[idx];
+    newOptions[key] = entry[1];
+    if (entry[1] === correctText) {
+      newCorrectAnswer = key;
+    }
+  });
+  
+  return {
+    ...q,
+    options: newOptions,
+    correctAnswer: newCorrectAnswer
+  };
+}
+
 export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, onComplete, savedScore }) => {
+  const [currentExerciseData, setCurrentExerciseData] = useState<ExerciseData>(exerciseData);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<boolean>(savedScore !== undefined && savedScore !== null);
   const [score, setScore] = useState<number | null>(savedScore || null);
@@ -20,19 +48,39 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
   // Track shown results per question ID (for immediate feedback)
   const [shownResults, setShownResults] = useState<Record<string, boolean>>({});
 
+  // Scramble option positions on mount / when exerciseData changes to ensure visual variety
+  useEffect(() => {
+    if (!exerciseData) return;
+    
+    const shuffled: ExerciseData = {
+      ...exerciseData,
+      multipleChoice: (exerciseData.multipleChoice || []).map(q => shuffleSingleQuestionOptions(q)),
+      translation: (exerciseData.translation || []).map(q => shuffleSingleQuestionOptions(q)),
+      fillBlank: (exerciseData.fillBlank || []).map(q => shuffleSingleQuestionOptions(q)),
+      // errorCorrection options match specific underlined labels in the sentence, so we do not scramble them programmatically.
+    };
+    
+    setCurrentExerciseData(shuffled);
+    setAnswers({});
+    setShownResults({});
+    setOrderingIndices({});
+    setScore(savedScore || null);
+    setSubmitted(savedScore !== undefined && savedScore !== null);
+  }, [exerciseData, savedScore]);
+
   const allQuestions: { type: string; title: string; questions: ExerciseQuestion[] }[] = [
-    { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: (exerciseData.multipleChoice || []).map(q => ({ ...q, type: 'multiple-choice' })) },
-    { type: 'translation', title: 'II. Chọn bản dịch đúng nhất (A, B, C)', questions: (exerciseData.translation || []).map(q => ({ ...q, type: 'translation' })) },
-    { type: 'ordering', title: 'III. Bấm vào chữ để sắp xếp lại câu', questions: (exerciseData.ordering || []).map(q => ({ ...q, type: 'ordering' })) },
-    { type: 'error-correction', title: 'IV. Tìm từ có lỗi sai (A, B, C)', questions: (exerciseData.errorCorrection || []).map(q => ({ ...q, type: 'error-correction' })) },
-    { type: 'fill-blank', title: 'V. Điền từ vào chỗ trống', questions: (exerciseData.fillBlank || []).map(q => ({ ...q, type: 'fill-blank' })) },
+    { type: 'multiple-choice', title: 'I. Chọn đáp án đúng (A, B, C)', questions: (currentExerciseData.multipleChoice || []).map(q => ({ ...q, type: 'multiple-choice' })) },
+    { type: 'translation', title: 'II. Chọn bản dịch đúng nhất (A, B, C)', questions: (currentExerciseData.translation || []).map(q => ({ ...q, type: 'translation' })) },
+    { type: 'ordering', title: 'III. Bấm vào chữ để sắp xếp lại câu', questions: (currentExerciseData.ordering || []).map(q => ({ ...q, type: 'ordering' })) },
+    { type: 'error-correction', title: 'IV. Tìm từ có lỗi sai (A, B, C)', questions: (currentExerciseData.errorCorrection || []).map(q => ({ ...q, type: 'error-correction' })) },
+    { type: 'fill-blank', title: 'V. Điền từ vào chỗ trống', questions: (currentExerciseData.fillBlank || []).map(q => ({ ...q, type: 'fill-blank' })) },
   ];
 
   // Initialize ordering indices for completed/submitted exercises
   useEffect(() => {
-    if (submitted && exerciseData?.ordering) {
+    if (submitted && currentExerciseData?.ordering) {
       const initialIndices: Record<string, number[]> = {};
-      exerciseData.ordering.forEach(q => {
+      currentExerciseData.ordering.forEach(q => {
         const correctWords = q.correctAnswer.split(' ');
         const indices: number[] = [];
         const used = new Set<number>();
@@ -49,24 +97,26 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       });
       setOrderingIndices(initialIndices);
     }
-  }, [submitted, exerciseData]);
+  }, [submitted, currentExerciseData]);
 
   const handleAnswerChange = (id: string, value: string) => {
-    if (submitted) return;
+    // Only allow selecting ONCE. Once the answer is selected and result is shown, prevent modification.
+    if (submitted || shownResults[id]) return;
+    
     setAnswers(prev => ({ ...prev, [id]: value }));
     setShownResults(prev => ({ ...prev, [id]: true }));
   };
 
   // Add word to Ordering answer
   const handleAddWordToAnswer = (qId: string, wordIdx: number) => {
-    if (submitted) return;
+    if (submitted || shownResults[qId]) return;
     const currentIndices = orderingIndices[qId] || [];
     if (currentIndices.includes(wordIdx)) return;
 
     const newIndices = [...currentIndices, wordIdx];
     setOrderingIndices(prev => ({ ...prev, [qId]: newIndices }));
 
-    const question = exerciseData.ordering.find(q => q.id === qId);
+    const question = currentExerciseData.ordering.find(q => q.id === qId);
     if (question) {
       const answerString = newIndices.map(idx => question.words[idx]).join(' ');
       setAnswers(prev => ({ ...prev, [qId]: answerString }));
@@ -80,12 +130,12 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
 
   // Remove word from Ordering answer
   const handleRemoveWordFromAnswer = (qId: string, itemIndexInAnswer: number) => {
-    if (submitted) return;
+    if (submitted || shownResults[qId]) return;
     const currentIndices = orderingIndices[qId] || [];
     const newIndices = currentIndices.filter((_, idx) => idx !== itemIndexInAnswer);
     setOrderingIndices(prev => ({ ...prev, [qId]: newIndices }));
 
-    const question = exerciseData.ordering.find(q => q.id === qId);
+    const question = currentExerciseData.ordering.find(q => q.id === qId);
     if (question) {
       const answerString = newIndices.map(idx => question.words[idx]).join(' ');
       setAnswers(prev => ({ ...prev, [qId]: answerString }));
@@ -157,10 +207,10 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
       }
       
       if (isShown && key === qMC.correctAnswer) {
-        base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-green-500 bg-green-50/70 text-green-950 font-semibold';
+        base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-green-500 bg-green-50/70 text-green-950 font-semibold cursor-not-allowed';
       } else if (isShown && userAnswer === key && key !== qMC.correctAnswer) {
-        base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-red-400 bg-red-50/70 text-red-950';
-      } else if (submitted) {
+        base = 'flex items-center gap-3 p-3 rounded-lg border-2 select-none border-red-400 bg-red-50/70 text-red-950 cursor-not-allowed';
+      } else if (submitted || isShown) {
         base += ' opacity-60 cursor-not-allowed';
       }
       
@@ -212,20 +262,20 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
                       <motion.button
                         key={`${idx}-${itemIndex}`}
                         layoutId={`word-${q.id}-${idx}`}
-                        disabled={submitted}
+                        disabled={submitted || shownResults[q.id]}
                         onClick={() => handleRemoveWordFromAnswer(q.id, itemIndex)}
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500 text-white rounded-lg text-xs sm:text-sm font-bold shadow-sm flex items-center gap-1 transition-all"
-                        whileTap={submitted ? {} : { scale: 0.95 }}
+                        whileTap={submitted || shownResults[q.id] ? {} : { scale: 0.95 }}
                       >
                         {(q as OrderingQuestion).words[idx]}
-                        {!submitted && <span className="text-[10px] opacity-75 font-black ml-1">✕</span>}
+                        {!(submitted || shownResults[q.id]) && <span className="text-[10px] opacity-75 font-black ml-1">✕</span>}
                       </motion.button>
                     ))
                   )}
                 </div>
 
                 {/* Available Word Pool */}
-                {!submitted && (
+                {!(submitted || shownResults[q.id]) && (
                   <div className="space-y-1">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Từ gợi ý:</span>
                     <div className="flex flex-wrap gap-2">
@@ -252,8 +302,6 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
               </div>
             )}
 
-            {/* fill-blank specific UI is now rendered above, no need for duplicate italic text */}
-
             {/* Multiple Choice Options (for multiple-choice, translation, error-correction, fill-blank) */}
             {(q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction' || q.type === 'fill-blank') ? (
               <div className="space-y-2 mt-2">
@@ -263,7 +311,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
                       type="radio" 
                       name={q.id} 
                       value={key} 
-                      disabled={submitted}
+                      disabled={submitted || shownResults[q.id]}
                       checked={userAnswer === key} 
                       onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                       className="w-4 h-4 text-brand-green border-slate-300 focus:ring-brand-green shrink-0" 
