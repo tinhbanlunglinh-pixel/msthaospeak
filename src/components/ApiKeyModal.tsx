@@ -7,9 +7,10 @@ interface ApiKeyModalProps {
   currentApiKey: string;
   onSave: (key: string) => void;
   onClose: () => void;
+  hasEnvKey?: boolean;
 }
 
-export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ show, currentApiKey, onSave, onClose }) => {
+export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ show, currentApiKey, onSave, onClose, hasEnvKey }) => {
   // Use local state to avoid modifying the real apiKey on every keystroke (bug fix)
   const [localKey, setLocalKey] = useState(currentApiKey);
 
@@ -83,7 +84,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ show, currentApiKey, o
                   Lưu và Bắt đầu
                 </button>
                 
-                {currentApiKey && (
+                {(currentApiKey || hasEnvKey) && (
                   <button 
                     onClick={onClose}
                     className="text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest mt-2"

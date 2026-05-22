@@ -30,7 +30,18 @@ export default function App() {
   // Core state
   const [topic, setTopic] = useState('');
   const [level, setLevel] = useState<EnglishLevel>("Starters");
-const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem("GEMINI_API_KEY") || "");
+  const [apiKey, setApiKey] = useState(localStorage.getItem("GEMINI_API_KEY") || "");
+  
+  const hasEnvKey = React.useMemo(() => {
+    const envKey = process.env.GEMINI_API_KEY;
+    return !!(
+      envKey &&
+      envKey.toUpperCase() !== "UNDEFINED" &&
+      envKey.toUpperCase() !== "NULL" &&
+      envKey !== "MY_GEMINI_API_KEY" &&
+      envKey.trim() !== ""
+    );
+  }, []);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [contentMode, setContentMode] = useState<ContentMode>("generate");
@@ -64,8 +75,10 @@ const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || loca
 
   // API Key check on mount
   React.useEffect(() => {
-    if (!apiKey) setShowApiKeyModal(true);
-  }, []);
+    if (!apiKey && !hasEnvKey) {
+      setShowApiKeyModal(true);
+    }
+  }, [apiKey, hasEnvKey]);
 
   // Save score to history when evaluation completes
   React.useEffect(() => {
@@ -75,8 +88,8 @@ const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || loca
   }, [recorder.evaluation]);
 
   const handleUpdateApiKey = useCallback((newKey: string) => {
-setApiKey(import.meta.env.VITE_GEMINI_API_KEY || "");
-localStorage.removeItem("GEMINI_API_KEY");
+    setApiKey(newKey);
+    localStorage.setItem("GEMINI_API_KEY", newKey);
     setShowApiKeyModal(false);
     setError(null);
   }, []);
@@ -318,7 +331,8 @@ localStorage.removeItem("GEMINI_API_KEY");
         show={showApiKeyModal} 
         currentApiKey={apiKey} 
         onSave={handleUpdateApiKey} 
-        onClose={() => { if (apiKey) setShowApiKeyModal(false); }} 
+        onClose={() => { if (apiKey || hasEnvKey) setShowApiKeyModal(false); }} 
+        hasEnvKey={hasEnvKey}
       />
 
       {/* Lesson History Sidebar */}
