@@ -30,7 +30,7 @@ export default function App() {
   // Core state
   const [topic, setTopic] = useState('');
   const [level, setLevel] = useState<EnglishLevel>("Starters");
-  const [apiKey, setApiKey] = useState(localStorage.getItem("GEMINI_API_KEY") || "");
+const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || "");
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [contentMode, setContentMode] = useState<ContentMode>("generate");
