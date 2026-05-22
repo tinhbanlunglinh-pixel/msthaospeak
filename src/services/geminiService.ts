@@ -31,27 +31,13 @@ const parseSafeJson = (text: string) => {
 };
 
 const getApiKey = () => {
-  // Try to get from localStorage first (for client-managed keys)
-  if (typeof window !== "undefined") {
-    const localKey = localStorage.getItem("GEMINI_API_KEY");
-    if (localKey && localKey.trim() !== "") return localKey.trim();
-  }
-  
-  // Fallback to environment variable
-  const envKey = process.env.GEMINI_API_KEY;
-  if (!envKey || envKey === "UNDEFINED" || envKey === "MY_GEMINI_API_KEY") {
-    console.warn("GEMINI_API_KEY is not set or using placeholder.");
-  }
-  return envKey || "";
+  return import.meta.env.VITE_GEMINI_API_KEY || "";
 };
-
-// We use a function to get the instance so it can pick up changes in localStorage
 const getAI = () => {
-  return new GoogleGenAI({ 
+  return new GoogleGenAI({
     apiKey: getApiKey(),
   });
 };
-
 // Model fallback chain — use only currently available, non-deprecated models
 const TEXT_MODELS = [
   "gemini-2.5-flash",
