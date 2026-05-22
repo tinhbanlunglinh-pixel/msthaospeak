@@ -704,74 +704,104 @@ export const generateExercise = async (
   readingText: string,
   level: EnglishLevel
 ): Promise<ExerciseData> => {
-  const systemInstruction = `You are a highly skilled English pedagogical expert and school teacher. Create exactly 30 exercise questions based ON THE PROVIDED READING TEXT.
-The student level is: ${level}. You must pay close attention to grammar, logical structures, correct syntax, and ensure all questions and correctAnswers are 100% grammatically correct.
+  const systemInstruction = `
+You are a strict English exercise generator.
 
-The questions must be structured exactly as requested in the JSON format.
-There must be EXACTLY:
-- 10 multiple-choice questions (A, B, C)
-- 5 translation questions (English to Vietnamese, A, B, C multiple-choice options)
-- 5 ordering questions (Rearrange words to make a sentence)
-- 5 error-correction questions (Identify ONE wrong word from 3 options A, B, C within a sentence)
-- 5 fill-blank questions (Fill in the missing word)
+Create EXACTLY 30 exercise questions based ONLY on the provided reading text.
 
-IMPORTANT RULES FOR A 20-YEAR EXPERIENCED TEACHER:
-1. **Multiple Choice (10 questions):** Focus on Reading Comprehension (main idea, details, inference, vocabulary in context). Distractors (incorrect options) must be plausible but clearly wrong.
-2. **Translation (5 questions):** Depending on the level (${level}), select either words (for lower levels like Starters, Movers, Flyers) or full sentences (for higher levels like A1, A2, B1, B2) from the text. This MUST be multiple choice with options A, B, C in Vietnamese. The correctAnswer must be 'A', 'B', or 'C'.
-3. **Ordering (5 questions):** Scramble sentences from or closely related to the reading text that test standard English syntax.
-   🚨 CRITICAL RULE FOR ORDERING WORDS:
-   - The "words" array MUST contain EXACTLY the words of the "correctAnswer" in a scrambled order.
-   - Do NOT include any extra words that are not in the "correctAnswer" (like extra articles, pronouns, or prepositions).
-   - Do NOT miss any words. Every word in the "correctAnswer" must appear exactly once in the "words" array.
-   - Punctuation (such as a period, question mark, or exclamation mark) must remain attached to the last word of both "words" and "correctAnswer" (e.g. if the correctAnswer is "Look at the bear.", then the word in the words array must be "bear.").
-4. **Error Correction (5 questions):** The errors should be common mistakes for this specific CEFR level (e.g., verb tense, subject-verb agreement, prepositions). The sentence must contain exactly ONE error. Provide options A, B, C containing 3 words from the sentence, where one of them is the error. The correctAnswer must be 'A', 'B', or 'C'. The "sentence" field MUST format these three words with underlines and labels, e.g.: "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday." where option B is the error. Provide the correction in the "correctWord" field.
-5. **Fill in the blank (5 questions):** The missing word should be a target vocabulary word or a key functional word. Use "___" to denote the blank space. This MUST be multiple choice with options A, B, C. The correctAnswer must be 'A', 'B', or 'C'.
-6. Every question MUST be strictly based on the provided text to ensure context.
-7. Provide a brief, encouraging pedagogical explanation for each answer STRICTLY IN VIETNAMESE (e.g. "Vì 'yesterday' diễn tả quá khứ đơn nên ta chọn động từ 'went' thay cho 'go'.").
-8. All IDs must be unique strings (e.g., "mc1", "tr1").
-9. DO NOT include instructional prefixes like "Translate to Vietnamese:", "Rearrange the words:", "Find and correct the error:", or "Fill in the blank:" in the questionText. Just provide the sentence or word itself.
-10. For Fill in the blank questions, provide a "hintEmoji" (a single emoji that visually represents the missing word or context, e.g. 🍎 for apple, 🏃 for running) to help students guess the answer.
-11. 🚨 **EVEN DISTRIBUTION OF CORRECT ANSWERS:** You MUST distribute the correct answers ('A', 'B', 'C') as evenly as possible. For example, among the 10 multipleChoice questions, do NOT make 'A' the correct answer for all of them; instead, have about 3-4 questions with correct answer 'A', 3-4 with 'B', and 3-4 with 'C'. Balance this distribution for all multiple-choice style sections.
+MANDATORY OUTPUT:
+- multipleChoice: EXACTLY 10
+- translation: EXACTLY 5
+- ordering: EXACTLY 5
+- errorCorrection: EXACTLY 5
+- fillBlank: EXACTLY 5
 
-Output strictly a JSON object matching this schema:
+TOTAL = EXACTLY 30 QUESTIONS
+
+RULES:
+- Return ONLY valid JSON
+- No markdown
+- No explanation outside JSON
+- Never shorten output
+- Never skip sections
+- If unsure, create easier questions instead of fewer questions
+- All explanations MUST be in Vietnamese
+
+JSON FORMAT:
 {
-  "multipleChoice": [
-    { "id": "mc1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "B", "explanation": "..." (brief, helpful explanation in Vietnamese) },
-    ... 10 items
-  ],
-  "translation": [
-    { "id": "tr1", "questionText": "...", "options": { "A": "...", "B": "...", "C": "..." }, "correctAnswer": "C", "explanation": "..." },
-    ... 5 items
-  ],
-  "ordering": [
-    { "id": "or1", "questionText": "She is going to the market.", "words": ["going", "market.", "is", "She", "to", "the"], "correctAnswer": "She is going to the market.", "explanation": "..." },
-    ... 5 items
-  ],
-  "errorCorrection": [
-    { "id": "ec1", "questionText": "...", "sentence": "<u>He</u> (A) <u>go</u> (B) to <u>school</u> (C) yesterday.", "options": { "A": "He", "B": "go", "C": "school" }, "correctAnswer": "B", "correctWord": "went", "explanation": "..." },
-    ... 5 items
-  ],
-  "fillBlank": [
-    { "id": "fb1", "questionText": "He ___ to school.", "sentenceWithBlank": "He ___ to school.", "hintEmoji": "🏫", "options": { "A": "goes", "B": "going", "C": "gone" }, "correctAnswer": "A", "explanation": "..." },
-    ... 5 items
-  ]
-}`;
+  "multipleChoice": [],
+  "translation": [],
+  "ordering": [],
+  "errorCorrection": [],
+  "fillBlank": []
+}
+`;
 
-  const response = await generateWithFallback(TEXT_MODELS, {
-    contents: [{ role: "user", parts: [{ text: `Reading Text: ${readingText}` }] }],
-    config: { 
-      systemInstruction,
-      responseMimeType: "application/json",
-      temperature: 0.2, // keep it deterministic
-      maxOutputTokens: 8192 // Ensure the 30-question JSON is not truncated early
-    },
-  });
+  const isCompleteExercise = (data: any) => {
+    return (
+      data &&
+      Array.isArray(data.multipleChoice) &&
+      Array.isArray(data.translation) &&
+      Array.isArray(data.ordering) &&
+      Array.isArray(data.errorCorrection) &&
+      Array.isArray(data.fillBlank) &&
+      data.multipleChoice.length === 10 &&
+      data.translation.length === 5 &&
+      data.ordering.length === 5 &&
+      data.errorCorrection.length === 5 &&
+      data.fillBlank.length === 5
+    );
+  };
 
-  try {
-    const result = parseSafeJson(response.text || "{}");
-    return result as ExerciseData;
-  } catch (err: any) {
-    console.error("Exercise Generation Error:", err);
-    throw new Error("Failed to generate exercise. Please try again.");
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await generateWithFallback(TEXT_MODELS, {
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `
+Reading Text:
+${readingText}
+
+Student Level:
+${level}
+
+Generate EXACTLY 30 questions.
+Do not shorten.
+Return valid JSON only.
+`
+              }
+            ]
+          }
+        ],
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          temperature: 0.1,
+          maxOutputTokens: 12000
+        },
+      });
+
+      const result = parseSafeJson(response.text || "{}");
+
+      if (!isCompleteExercise(result)) {
+        throw new Error("INCOMPLETE_EXERCISE_JSON");
+      }
+
+      return result as ExerciseData;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`Exercise attempt ${attempt} failed`, err);
+
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
   }
+
+  throw new Error("Không thể tạo đủ bài tập. Vui lòng thử lại.");
 };
