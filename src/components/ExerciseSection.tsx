@@ -153,7 +153,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({ exerciseData, 
         const userAnswer = answers[q.id]?.trim().toLowerCase();
 
         let isCorrect = false;
-        if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction') {
+        if (q.type === 'multiple-choice' || q.type === 'translation' || q.type === 'error-correction' || q.type === 'fill-blank') {
           isCorrect = userAnswer === q.correctAnswer.toLowerCase();
         } else {
           const normalize = (s: string) => s.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();

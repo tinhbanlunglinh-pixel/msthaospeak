@@ -69,7 +69,6 @@ export function useRecorder(
       // Gemini natively accepts audio/webm, audio/mp4, audio/ogg, audio/wav, audio/mp3
       const result = await evaluateSpeech(currentText, base64Audio, currentLevel, mimeType);
       setEvaluation(result);
-      setIsEvaluating(false);
     } catch (err: any) {
       console.error("Evaluation error:", err);
       const errorMessage = err?.message || String(err);
@@ -97,6 +96,7 @@ export function useRecorder(
           setError(`Lỗi chấm điểm: ${errorMessage.substring(0, 100)}${errorMessage.length > 100 ? '...' : ''}. (Vui lòng thử lại)`);
         }
       }
+    } finally {
       setIsEvaluating(false);
     }
   }, [setError]);
